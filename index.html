@@ -671,7 +671,7 @@
       <div>
         <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">操作類型</label>
         <div class="cdrop" id="dropOpType">
-          <div class="cdrop-trigger" onclick="toggleCDrop('dropOpType')">
+          <div class="cdrop-trigger" onclick="toggleCDrop('dropOpType',event)">
             <span id="opTypeDisplay">💰 存款</span>
             <span class="cdrop-arrow">▾</span>
           </div>
@@ -695,7 +695,7 @@
         <div>
           <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">資產類別</label>
           <div class="cdrop" id="dropCategory">
-            <div class="cdrop-trigger" onclick="toggleCDrop('dropCategory')">
+            <div class="cdrop-trigger" onclick="toggleCDrop('dropCategory',event)">
               <span id="catDisplay">🏦 銀行存款 (RM)</span>
               <span class="cdrop-arrow">▾</span>
             </div>
@@ -738,7 +738,7 @@
         <div>
           <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">📤 轉出資產</label>
           <div class="cdrop" id="dropSwapFrom">
-            <div class="cdrop-trigger" onclick="toggleCDrop('dropSwapFrom')">
+            <div class="cdrop-trigger" onclick="toggleCDrop('dropSwapFrom',event)">
               <span id="swapFromDisplay">🏦 銀行存款 (RM)</span>
               <span class="cdrop-arrow">▾</span>
             </div>
@@ -764,7 +764,7 @@
         <div>
           <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">📥 轉入資產</label>
           <div class="cdrop" id="dropSwapTo">
-            <div class="cdrop-trigger" onclick="toggleCDrop('dropSwapTo')">
+            <div class="cdrop-trigger" onclick="toggleCDrop('dropSwapTo',event)">
               <span id="swapToDisplay">🪙 USDT 錢包 (USD)</span>
               <span class="cdrop-arrow">▾</span>
             </div>
@@ -1214,10 +1214,10 @@ let _swapTo   = 'usdt';
 // ═══════════════════════════════════════════════
 //  CUSTOM DROPDOWN
 // ═══════════════════════════════════════════════
-function toggleCDrop(id) {
+function toggleCDrop(id, event) {
+  if (event) event.stopPropagation();
   const el = document.getElementById(id);
   const wasOpen = el.classList.contains('open');
-  // close all
   document.querySelectorAll('.cdrop.open').forEach(d => d.classList.remove('open'));
   if (!wasOpen) el.classList.add('open');
 }
