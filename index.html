@@ -1061,7 +1061,7 @@ function render() {
   document.getElementById('txCount').textContent = state.txs.length;
   // 當月淨存入：篩選本月交易（非 swap），折算 RM 後加總
   const now = new Date();
-  const thisYM = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
+  const thisYM = `${now.getFullYear()}/${now.getMonth()+1}/`;
   const monthTxs = state.txs.filter(t => t.type !== 'swap' && t.time && t.time.startsWith(thisYM));
   const monthSum = monthTxs.reduce((a,t) => {
     const rmEq = (t.category === 'bank' || t.category === 'mystock') ? t.amount : t.amount * RATE;
