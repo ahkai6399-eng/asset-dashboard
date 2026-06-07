@@ -325,6 +325,88 @@
     }
     #toast.show { transform: translateY(0); opacity: 1; }
 
+    /* ── Custom Dropdown ── */
+    .cdrop { position: relative; }
+    .cdrop-trigger {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #E2E8F0;
+      font-size: 0.9rem;
+      width: 100%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cdrop-trigger:hover { border-color: rgba(0,255,136,0.35); }
+    .cdrop.open .cdrop-trigger {
+      border-color: rgba(0,255,136,0.5);
+      box-shadow: 0 0 0 3px rgba(0,255,136,0.1);
+    }
+    .cdrop-arrow {
+      color: #475569;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+      transition: transform 0.22s cubic-bezier(0.16,1,0.3,1);
+    }
+    .cdrop.open .cdrop-arrow { transform: rotate(180deg); color: #00FF88; }
+    .cdrop-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0; right: 0;
+      background: #0D1A24;
+      border: 1px solid rgba(0,255,136,0.22);
+      border-radius: 12px;
+      overflow: hidden;
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(-8px) scale(0.98);
+      pointer-events: none;
+      transition: opacity 0.18s cubic-bezier(0.16,1,0.3,1), transform 0.18s cubic-bezier(0.16,1,0.3,1);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,255,136,0.06);
+    }
+    .cdrop.open .cdrop-menu {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: all;
+    }
+    .cdrop-item {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 0.88rem;
+      color: #64748B;
+      transition: background 0.12s, color 0.12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cdrop-item:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .cdrop-item:active { background: rgba(0,255,136,0.12); }
+    .cdrop-item:hover { background: rgba(0,255,136,0.07); color: #CBD5E1; }
+    .cdrop-item.selected { color: #E2E8F0; background: rgba(0,255,136,0.05); }
+    .cdrop-check {
+      color: #00FF88;
+      font-size: 0.9rem;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .cdrop-item.selected .cdrop-check { opacity: 1; }
+
+    /* ── Swap mode form ── */
+    #swapForm .swap-arrow-row {
+      display: flex; align-items: center; justify-content: center;
+      color: #334155; font-size: 1.1rem; margin: -4px 0;
+    }
+
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
@@ -580,34 +662,153 @@
 
 <!-- ══════════ MODAL ══════════ -->
 <div class="modal-backdrop" id="modalBackdrop" onclick="handleBackdropClick(event)">
-  <div class="modal-box">
+  <div class="modal-box" style="max-height:90vh;overflow-y:auto;">
     <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px;">💰 新增資產變動</div>
-    <div style="font-size:0.78rem;color:#475569;margin-bottom:24px;">只記淨變動，抓大放小</div>
+    <div style="font-size:0.78rem;color:#475569;margin-bottom:22px;">選擇操作類型，輕鬆完成記賬</div>
     <div class="space-y-4">
+
+      <!-- ① 操作類型 -->
       <div>
-        <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">資產類別</label>
-        <div style="position:relative;">
-          <select class="neo-select" id="modalCategory">
-            <option value="bank">🏦 銀行存款 (RM)</option>
-            <option value="mystock">🇲🇾 大馬股票 (RM)</option>
-            <option value="usdt">🪙 USDT 錢包 (USD)</option>
-            <option value="usstock">🇺🇸 美國股票 (USD)</option>
-          </select>
-          <div style="position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;color:#475569;">▾</div>
+        <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">操作類型</label>
+        <div class="cdrop" id="dropOpType">
+          <div class="cdrop-trigger" onclick="toggleCDrop('dropOpType')">
+            <span id="opTypeDisplay">💰 存款</span>
+            <span class="cdrop-arrow">▾</span>
+          </div>
+          <div class="cdrop-menu">
+            <div class="cdrop-item selected" onclick="selectOpType('deposit','💰 存款',this)">
+              <span>💰 存款</span><span class="cdrop-check">✓</span>
+            </div>
+            <div class="cdrop-item" onclick="selectOpType('withdraw','💸 提款',this)">
+              <span>💸 提款</span><span class="cdrop-check">✓</span>
+            </div>
+            <div class="cdrop-item" onclick="selectOpType('swap','🔄 資產置換',this)">
+              <span>🔄 資產置換</span><span class="cdrop-check">✓</span>
+            </div>
+          </div>
         </div>
       </div>
-      <div>
-        <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">金額（正數增加 / 負數減少）</label>
-        <input class="neo-input" id="modalAmount" type="number" placeholder="例：+5000 或 -2000" step="0.01" />
+
+      <!-- ② 普通模式（存款 / 提款） -->
+      <div id="normalForm" class="space-y-4">
+        <!-- 資產類別 -->
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">資產類別</label>
+          <div class="cdrop" id="dropCategory">
+            <div class="cdrop-trigger" onclick="toggleCDrop('dropCategory')">
+              <span id="catDisplay">🏦 銀行存款 (RM)</span>
+              <span class="cdrop-arrow">▾</span>
+            </div>
+            <div class="cdrop-menu">
+              <div class="cdrop-item selected" onclick="selectCategory('bank','🏦 銀行存款 (RM)',this)">
+                <span>🏦 銀行存款 (RM)</span><span class="cdrop-check">✓</span>
+              </div>
+              <div class="cdrop-item" onclick="selectCategory('mystock','🇲🇾 大馬股票 (RM)',this)">
+                <span>🇲🇾 大馬股票 (RM)</span><span class="cdrop-check">✓</span>
+              </div>
+              <div class="cdrop-item" onclick="selectCategory('usdt','🪙 USDT 錢包 (USD)',this)">
+                <span>🪙 USDT 錢包 (USD)</span><span class="cdrop-check">✓</span>
+              </div>
+              <div class="cdrop-item" onclick="selectCategory('usstock','🇺🇸 美國股票 (USD)',this)">
+                <span>🇺🇸 美國股票 (USD)</span><span class="cdrop-check">✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 金額 -->
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;" id="amtLabel">存款金額</label>
+          <input class="neo-input" id="modalAmount" type="number" placeholder="輸入金額（純數字）" step="0.01" min="0" oninput="updatePreview()" />
+        </div>
+        <!-- 備注 -->
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">備注（選填）</label>
+          <input class="neo-input" id="modalNote" type="text" placeholder="例：五月份薪資" />
+        </div>
+        <!-- 普通預覽 -->
+        <div id="modalPreview" style="background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.15);border-radius:12px;padding:12px 16px;font-size:0.82rem;display:none;">
+          <div style="color:#475569;margin-bottom:4px;font-size:0.72rem;letter-spacing:0.06em;">預覽</div>
+          <div id="previewText" style="font-family:'JetBrains Mono',monospace;"></div>
+        </div>
       </div>
-      <div>
-        <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">備注（選填）</label>
-        <input class="neo-input" id="modalNote" type="text" placeholder="例：五月份淨存入" />
+
+      <!-- ③ 資產置換模式 -->
+      <div id="swapForm" style="display:none;" class="space-y-4">
+        <!-- 轉出資產 -->
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">📤 轉出資產</label>
+          <div class="cdrop" id="dropSwapFrom">
+            <div class="cdrop-trigger" onclick="toggleCDrop('dropSwapFrom')">
+              <span id="swapFromDisplay">🏦 銀行存款 (RM)</span>
+              <span class="cdrop-arrow">▾</span>
+            </div>
+            <div class="cdrop-menu">
+              <div class="cdrop-item selected" onclick="selectSwapFrom('bank','🏦 銀行存款 (RM)',this)">
+                <span>🏦 銀行存款 (RM)</span><span class="cdrop-check">✓</span>
+              </div>
+              <div class="cdrop-item" onclick="selectSwapFrom('mystock','🇲🇾 大馬股票 (RM)',this)">
+                <span>🇲🇾 大馬股票 (RM)</span><span class="cdrop-check">✓</span>
+              </div>
+              <div class="cdrop-item" onclick="selectSwapFrom('usdt','🪙 USDT 錢包 (USD)',this)">
+                <span>🪙 USDT 錢包 (USD)</span><span class="cdrop-check">✓</span>
+              </div>
+              <div class="cdrop-item" onclick="selectSwapFrom('usstock','🇺🇸 美國股票 (USD)',this)">
+                <span>🇺🇸 美國股票 (USD)</span><span class="cdrop-check">✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 箭頭 -->
+        <div class="swap-arrow-row">↕ 置換</div>
+        <!-- 轉入資產 -->
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">📥 轉入資產</label>
+          <div class="cdrop" id="dropSwapTo">
+            <div class="cdrop-trigger" onclick="toggleCDrop('dropSwapTo')">
+              <span id="swapToDisplay">🪙 USDT 錢包 (USD)</span>
+              <span class="cdrop-arrow">▾</span>
+            </div>
+            <div class="cdrop-menu">
+              <div class="cdrop-item" onclick="selectSwapTo('bank','🏦 銀行存款 (RM)',this)">
+                <span>🏦 銀行存款 (RM)</span><span class="cdrop-check">✓</span>
+              </div>
+              <div class="cdrop-item" onclick="selectSwapTo('mystock','🇲🇾 大馬股票 (RM)',this)">
+                <span>🇲🇾 大馬股票 (RM)</span><span class="cdrop-check">✓</span>
+              </div>
+              <div class="cdrop-item selected" onclick="selectSwapTo('usdt','🪙 USDT 錢包 (USD)',this)">
+                <span>🪙 USDT 錢包 (USD)</span><span class="cdrop-check">✓</span>
+              </div>
+              <div class="cdrop-item" onclick="selectSwapTo('usstock','🇺🇸 美國股票 (USD)',this)">
+                <span>🇺🇸 美國股票 (USD)</span><span class="cdrop-check">✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 轉出金額 -->
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">💰 轉出金額</label>
+          <input class="neo-input" id="swapAmount" type="number" placeholder="輸入轉出金額（純數字）" step="0.01" min="0" oninput="updateSwapPreview()" />
+        </div>
+        <!-- 置換匯率 -->
+        <div id="swapRateRow">
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">
+            💱 置換匯率　<span id="swapRateHint" style="color:#334155;font-size:0.72rem;">(1 RM = x.xx USD)</span>
+          </label>
+          <input class="neo-input" id="swapRate" type="number" placeholder="4.00" step="0.0001" value="4.00" oninput="updateSwapPreview()" />
+        </div>
+        <!-- 備注 -->
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">備注（選填）</label>
+          <input class="neo-input" id="swapNote" type="text" placeholder="例：換匯至 USDT" />
+        </div>
+        <!-- 置換預覽 -->
+        <div id="swapPreview" style="background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.15);border-radius:12px;padding:14px 16px;font-size:0.82rem;display:none;">
+          <div style="color:#475569;margin-bottom:6px;font-size:0.72rem;letter-spacing:0.06em;">置換預覽</div>
+          <div id="swapPreviewText" style="font-family:'JetBrains Mono',monospace;line-height:1.8;"></div>
+        </div>
       </div>
-      <div id="modalPreview" style="background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.15);border-radius:12px;padding:12px 16px;font-size:0.82rem;display:none;">
-        <div style="color:#475569;margin-bottom:4px;">預覽</div>
-        <div id="previewText" style="font-family:'JetBrains Mono',monospace;"></div>
-      </div>
+
+      <!-- 按鈕 -->
       <div class="flex gap-3 pt-2">
         <button class="btn-secondary" onclick="closeModal()">取消</button>
         <button class="btn-primary" onclick="submitTransaction()">確認記賬</button>
@@ -858,12 +1059,13 @@ function render() {
 
   // ── Stats ──
   document.getElementById('txCount').textContent = state.txs.length;
-  if (state.txs.length > 0) {
-    const sum = state.txs.reduce((a,t) => {
+  const normalTxs = state.txs.filter(t => t.type !== 'swap');
+  if (normalTxs.length > 0) {
+    const sum = normalTxs.reduce((a,t) => {
       const rmEq = (t.category === 'bank' || t.category === 'mystock') ? t.amount : t.amount * RATE;
       return a + rmEq;
     }, 0);
-    document.getElementById('avgMonthly').textContent = fmt(sum / state.txs.length, 'RM', 0);
+    document.getElementById('avgMonthly').textContent = fmt(sum / normalTxs.length, 'RM', 0);
   } else {
     document.getElementById('avgMonthly').textContent = '—';
   }
@@ -915,20 +1117,38 @@ function renderTable() {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#334155;padding:32px;font-size:0.82rem;">暫無記錄，點擊右下角 ＋ 開始記賬 🚀</td></tr>';
     return;
   }
-  const catLabel = { bank:'🏦 銀行', mystock:'🇲🇾 馬股', usdt:'🪙 USDT', usstock:'🇺🇸 美股' };
+  const CL = { bank:'🏦 銀行', mystock:'🇲🇾 馬股', usdt:'🪙 USDT', usstock:'🇺🇸 美股' };
+  const mono = `font-family:'JetBrains Mono',monospace;`;
   tbody.innerHTML = [...state.txs].reverse().map((t, i) => {
+    const seq = state.txs.length - i;
+    if (t.type === 'swap') {
+      const fromStr = state.privacy ? '****' : t.fromAmount.toLocaleString('en-US',{minimumFractionDigits:2});
+      const toStr   = state.privacy ? '****' : t.toAmount.toLocaleString('en-US',{minimumFractionDigits:2});
+      return `<tr>
+        <td style="color:#334155;${mono}">${seq}</td>
+        <td style="color:#475569;${mono}font-size:0.72rem;">${t.time}</td>
+        <td style="font-size:0.78rem;">${CL[t.from]} → ${CL[t.to]}</td>
+        <td style="${mono}font-weight:700;">
+          <span style="color:#FF6B6B;" class="sensitive">−${fromStr} ${t.fromCurrency}</span><br>
+          <span style="color:#00FF88;font-size:0.78rem;" class="sensitive">+${toStr} ${t.toCurrency}</span>
+        </td>
+        <td style="color:#3B82F6;font-size:0.8rem;">🔄</td>
+        <td style="color:#475569;font-size:0.75rem;${mono}">內部置換</td>
+        <td style="color:#475569;font-size:0.75rem;">${t.note || '—'}</td>
+      </tr>`;
+    }
     const isPos = t.amount >= 0;
     const color = isPos ? '#00FF88' : '#FF6B6B';
     const amtStr = state.privacy ? '****' : (isPos ? '+' : '') + t.amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
     const rmEq = (t.category === 'bank' || t.category === 'mystock') ? t.amount : t.amount * RATE;
     const rmStr = state.privacy ? '****' : (isPos ? '+' : '') + 'RM ' + Math.abs(rmEq).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
     return `<tr>
-      <td style="color:#334155;font-family:'JetBrains Mono',monospace;">${state.txs.length - i}</td>
-      <td style="color:#475569;font-family:'JetBrains Mono',monospace;font-size:0.72rem;">${t.time}</td>
-      <td>${catLabel[t.category] || t.category}</td>
-      <td style="color:${color};font-family:'JetBrains Mono',monospace;font-weight:700;" class="sensitive">${amtStr}</td>
+      <td style="color:#334155;${mono}">${seq}</td>
+      <td style="color:#475569;${mono}font-size:0.72rem;">${t.time}</td>
+      <td>${CL[t.category] || t.category}</td>
+      <td style="color:${color};${mono}font-weight:700;" class="sensitive">${amtStr}</td>
       <td style="color:#475569;">${t.currency}</td>
-      <td style="color:${color};font-family:'JetBrains Mono',monospace;" class="sensitive">${rmStr}</td>
+      <td style="color:${color};${mono}" class="sensitive">${rmStr}</td>
       <td style="color:#475569;font-size:0.75rem;">${t.note || '—'}</td>
     </tr>`;
   }).join('');
@@ -984,52 +1204,192 @@ function setCurrency(c) {
 }
 
 // ═══════════════════════════════════════════════
-//  MODAL
+//  MODAL — state
+// ═══════════════════════════════════════════════
+let _opType   = 'deposit';  // 'deposit' | 'withdraw' | 'swap'
+let _category = 'bank';
+let _swapFrom = 'bank';
+let _swapTo   = 'usdt';
+
+// ═══════════════════════════════════════════════
+//  CUSTOM DROPDOWN
+// ═══════════════════════════════════════════════
+function toggleCDrop(id) {
+  const el = document.getElementById(id);
+  const wasOpen = el.classList.contains('open');
+  // close all
+  document.querySelectorAll('.cdrop.open').forEach(d => d.classList.remove('open'));
+  if (!wasOpen) el.classList.add('open');
+}
+
+// click-outside closes all dropdowns
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cdrop')) {
+    document.querySelectorAll('.cdrop.open').forEach(d => d.classList.remove('open'));
+  }
+});
+
+function _selectInDrop(dropId, el) {
+  el.closest('.cdrop-menu').querySelectorAll('.cdrop-item')
+    .forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById(dropId).classList.remove('open');
+}
+
+function selectOpType(type, label, el) {
+  _opType = type;
+  document.getElementById('opTypeDisplay').textContent = label;
+  _selectInDrop('dropOpType', el);
+
+  const isSwap = type === 'swap';
+  document.getElementById('normalForm').style.display = isSwap ? 'none' : 'block';
+  document.getElementById('swapForm').style.display   = isSwap ? 'block' : 'none';
+  document.getElementById('modalPreview').style.display = 'none';
+  document.getElementById('swapPreview').style.display  = 'none';
+
+  if (!isSwap) {
+    document.getElementById('amtLabel').textContent = type === 'deposit' ? '存款金額' : '提款金額';
+    document.getElementById('modalAmount').value = '';
+  }
+}
+
+function selectCategory(cat, label, el) {
+  _category = cat;
+  document.getElementById('catDisplay').textContent = label;
+  _selectInDrop('dropCategory', el);
+  updatePreview();
+}
+
+function selectSwapFrom(cat, label, el) {
+  _swapFrom = cat;
+  document.getElementById('swapFromDisplay').textContent = label;
+  _selectInDrop('dropSwapFrom', el);
+  _refreshSwapRate();
+  updateSwapPreview();
+}
+
+function selectSwapTo(cat, label, el) {
+  _swapTo = cat;
+  document.getElementById('swapToDisplay').textContent = label;
+  _selectInDrop('dropSwapTo', el);
+  _refreshSwapRate();
+  updateSwapPreview();
+}
+
+function _isRM(cat) { return cat === 'bank' || cat === 'mystock'; }
+
+function _refreshSwapRate() {
+  const fromRM = _isRM(_swapFrom), toRM = _isRM(_swapTo);
+  const rateRow   = document.getElementById('swapRateRow');
+  const rateHint  = document.getElementById('swapRateHint');
+  const rateInput = document.getElementById('swapRate');
+  if (fromRM === toRM) {
+    rateRow.style.display = 'none';
+    rateInput.value = '1';
+  } else {
+    rateRow.style.display = 'block';
+    if (fromRM && !toRM) {
+      rateHint.textContent = '（RM ÷ 匯率 = USD ）';
+      rateInput.value = RATE.toFixed(2);
+    } else {
+      rateHint.textContent = '（USD × 匯率 = RM ）';
+      rateInput.value = RATE.toFixed(2);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  MODAL open / close
 // ═══════════════════════════════════════════════
 function openModal() {
   document.getElementById('modalBackdrop').classList.add('open');
   document.getElementById('modalAmount').value = '';
-  document.getElementById('modalNote').value = '';
+  document.getElementById('modalNote').value   = '';
+  document.getElementById('swapAmount').value  = '';
+  document.getElementById('swapNote').value    = '';
   document.getElementById('modalPreview').style.display = 'none';
-  setTimeout(() => document.getElementById('modalAmount').focus(), 300);
+  document.getElementById('swapPreview').style.display  = 'none';
+  setTimeout(() => {
+    const f = _opType === 'swap' ? 'swapAmount' : 'modalAmount';
+    document.getElementById(f).focus();
+  }, 300);
 }
-function closeModal() { document.getElementById('modalBackdrop').classList.remove('open'); }
-function handleBackdropClick(e) { if (e.target === document.getElementById('modalBackdrop')) closeModal(); }
+function closeModal() {
+  document.getElementById('modalBackdrop').classList.remove('open');
+  document.querySelectorAll('.cdrop.open').forEach(d => d.classList.remove('open'));
+}
+function handleBackdropClick(e) {
+  if (e.target === document.getElementById('modalBackdrop')) closeModal();
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('modalAmount').addEventListener('input', updatePreview);
-  document.getElementById('modalCategory').addEventListener('change', updatePreview);
-});
-
+// ═══════════════════════════════════════════════
+//  PREVIEW
+// ═══════════════════════════════════════════════
 function updatePreview() {
-  const amt = parseFloat(document.getElementById('modalAmount').value);
-  const cat = document.getElementById('modalCategory').value;
+  const rawAmt = parseFloat(document.getElementById('modalAmount').value);
   const preview = document.getElementById('modalPreview');
   const text    = document.getElementById('previewText');
-  if (isNaN(amt)) { preview.style.display = 'none'; return; }
-  const isRM     = (cat === 'bank' || cat === 'mystock');
+  if (isNaN(rawAmt) || rawAmt === 0) { preview.style.display = 'none'; return; }
+  const cat      = _category;
+  const isRM     = _isRM(cat);
   const currency = isRM ? 'RM' : 'USD';
+  const amt      = _opType === 'deposit' ? Math.abs(rawAmt) : -Math.abs(rawAmt);
   const rmEq     = isRM ? Math.abs(amt) : Math.abs(amt) * RATE;
   const catLabel = { bank:'銀行存款', mystock:'大馬股票', usdt:'USDT', usstock:'美國股票' }[cat];
-  const sign = amt >= 0 ? '+' : '-';
+  const sign = amt >= 0 ? '+' : '−';
   const col  = amt >= 0 ? '#00FF88' : '#FF6B6B';
   text.innerHTML = `<span style="color:${col};">${sign}${Math.abs(amt).toLocaleString('en-US',{minimumFractionDigits:2})} ${currency}</span>
     <span style="color:#475569;font-size:0.75rem;"> → ${catLabel}${isRM ? '' : ` (≈ RM ${rmEq.toLocaleString('en-US',{minimumFractionDigits:2})})`}</span>`;
   preview.style.display = 'block';
 }
 
+function updateSwapPreview() {
+  const fromAmt = parseFloat(document.getElementById('swapAmount').value);
+  const rate    = parseFloat(document.getElementById('swapRate').value) || 1;
+  const preview = document.getElementById('swapPreview');
+  const text    = document.getElementById('swapPreviewText');
+  if (isNaN(fromAmt) || fromAmt <= 0) { preview.style.display = 'none'; return; }
+
+  const fromRM = _isRM(_swapFrom), toRM = _isRM(_swapTo);
+  const fromCcy = fromRM ? 'RM' : 'USD';
+  const toCcy   = toRM   ? 'RM' : 'USD';
+
+  let toAmt;
+  if (fromRM === toRM)       toAmt = fromAmt;
+  else if (fromRM && !toRM)  toAmt = fromAmt / rate;   // RM → USD
+  else                       toAmt = fromAmt * rate;   // USD → RM
+
+  const CL = { bank:'🏦 銀行存款', mystock:'🇲🇾 大馬股票', usdt:'🪙 USDT', usstock:'🇺🇸 美股' };
+  const rateNote = fromRM === toRM
+    ? `同幣種直轉，無匯率損耗`
+    : `匯率 1 ${fromCcy} = ${(fromRM ? (1/rate) : rate).toFixed(4)} ${toCcy}`;
+  text.innerHTML =
+    `<div style="color:#FF6B6B;">− ${fromAmt.toLocaleString('en-US',{minimumFractionDigits:2})} ${fromCcy}　<span style="color:#475569;font-size:0.75rem;">${CL[_swapFrom]}</span></div>` +
+    `<div style="color:#00FF88;">+ ${toAmt.toLocaleString('en-US',{minimumFractionDigits:2})} ${toCcy}　<span style="color:#475569;font-size:0.75rem;">${CL[_swapTo]}</span></div>` +
+    `<div style="color:#334155;font-size:0.72rem;margin-top:4px;">${rateNote}</div>`;
+  preview.style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════
+//  SUBMIT
+// ═══════════════════════════════════════════════
 function submitTransaction() {
-  const amt  = parseFloat(document.getElementById('modalAmount').value);
-  const cat  = document.getElementById('modalCategory').value;
-  const note = document.getElementById('modalNote').value.trim();
-  if (isNaN(amt) || amt === 0) {
+  if (_opType === 'swap') { submitSwap(); } else { submitNormal(); }
+}
+
+function submitNormal() {
+  const rawAmt = parseFloat(document.getElementById('modalAmount').value);
+  const note   = document.getElementById('modalNote').value.trim();
+  if (isNaN(rawAmt) || rawAmt === 0) {
     const inp = document.getElementById('modalAmount');
     inp.style.borderColor = 'rgba(255,100,100,0.6)';
     inp.focus();
     setTimeout(() => inp.style.borderColor = '', 1500);
     return;
   }
-  const isRM     = (cat === 'bank' || cat === 'mystock');
+  const cat      = _category;
+  const amt      = _opType === 'deposit' ? Math.abs(rawAmt) : -Math.abs(rawAmt);
+  const isRM     = _isRM(cat);
   const currency = isRM ? 'RM' : 'USD';
   const now      = new Date();
   const timeStr  = now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW',{hour12:false});
@@ -1039,11 +1399,50 @@ function submitTransaction() {
   if (cat === 'usdt')    state.usdt    = Math.max(0, state.usdt    + amt);
   if (cat === 'usstock') state.usstock = Math.max(0, state.usstock + amt);
 
-  state.txs.push({ id: Date.now(), time: timeStr, category: cat, amount: amt, currency, note });
-  saveState();
-  closeModal();
-  render();
-  showToast('✅ 資產已更新！');
+  state.txs.push({ id: Date.now(), time: timeStr, type: _opType, category: cat, amount: amt, currency, note });
+  saveState(); closeModal(); render();
+  showToast(_opType === 'deposit' ? '✅ 存款已記錄！' : '✅ 提款已記錄！');
+}
+
+function submitSwap() {
+  const fromAmt = parseFloat(document.getElementById('swapAmount').value);
+  const rate    = parseFloat(document.getElementById('swapRate').value) || 1;
+  const note    = document.getElementById('swapNote').value.trim();
+  if (isNaN(fromAmt) || fromAmt <= 0) {
+    const inp = document.getElementById('swapAmount');
+    inp.style.borderColor = 'rgba(255,100,100,0.6)';
+    inp.focus();
+    setTimeout(() => inp.style.borderColor = '', 1500);
+    return;
+  }
+  if (_swapFrom === _swapTo) {
+    document.getElementById('dropSwapTo').querySelector('.cdrop-trigger').style.borderColor = 'rgba(255,100,100,0.6)';
+    setTimeout(() => document.getElementById('dropSwapTo').querySelector('.cdrop-trigger').style.borderColor = '', 1500);
+    return;
+  }
+  const fromRM = _isRM(_swapFrom), toRM = _isRM(_swapTo);
+  let toAmt;
+  if (fromRM === toRM)      toAmt = fromAmt;
+  else if (fromRM && !toRM) toAmt = fromAmt / rate;
+  else                      toAmt = fromAmt * rate;
+
+  // update balances
+  const sub = (k, v) => { state[k] = Math.max(0, state[k] - v); };
+  const add = (k, v) => { state[k] = state[k] + v; };
+  sub(_swapFrom, fromAmt); add(_swapTo, toAmt);
+
+  const now     = new Date();
+  const timeStr = now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW',{hour12:false});
+  state.txs.push({
+    id: Date.now(), time: timeStr, type: 'swap',
+    from: _swapFrom, to: _swapTo,
+    fromAmount: fromAmt, toAmount: parseFloat(toAmt.toFixed(6)),
+    fromCurrency: fromRM ? 'RM' : 'USD',
+    toCurrency:   toRM   ? 'RM' : 'USD',
+    rate, note
+  });
+  saveState(); closeModal(); render();
+  showToast('🔄 資產置換完成！');
 }
 
 // ═══════════════════════════════════════════════
@@ -1239,6 +1638,26 @@ async function exportExcel() {
       const mFStart=curR; let mTotal=0;
       txs.forEach((t,i)=>{
         const r=curR, even=i%2===0;
+        ws2.getRow(r).height=20;
+        if (t.type === 'swap') {
+          // Swap: 內部置換，RM 折算淨影響為 0
+          const swapLabel = `🔄 ${CAT[t.from]||t.from} → ${CAT[t.to]||t.to}`;
+          const swapNote  = `${t.fromAmount} ${t.fromCurrency} → ${t.toAmount} ${t.toCurrency}${t.note?'  '+t.note:''}`;
+          const balRes = parseFloat(runBal.toFixed(2));
+          const balFn  = lastBalR===null ? `F${r}` : `G${lastBalR}+F${r}`;
+          D(ws2.getCell(`A${r}`),gIdx++,  even,'center');
+          D(ws2.getCell(`B${r}`),t.time,  even,'left');
+          D(ws2.getCell(`C${r}`),swapLabel, even,'left');
+          D(ws2.getCell(`D${r}`),0,        even,'right',FMT);
+          D(ws2.getCell(`E${r}`),'🔄',    even,'center');
+          D(ws2.getCell(`F${r}`),0,        even,'right',FMT);
+          const gCell=ws2.getCell(`G${r}`);
+          D(gCell,{formula:balFn,result:balRes},even,'right',FMT);
+          gCell.font={size:10,color:{argb:'FF7FFFD4'},name:'Calibri'};
+          D(ws2.getCell(`H${r}`),swapNote,even,'left');
+          lastBalR=r; curR++;
+          return;
+        }
         const isRM=(t.category==='bank'||t.category==='mystock');
         const rmRes=parseFloat((isRM?t.amount:t.amount*RATE).toFixed(2));
         // F 欄公式引用 Sheet1 匯率活口
@@ -1247,7 +1666,6 @@ async function exportExcel() {
         const balRes=parseFloat(runBal.toFixed(2));
         const balFn = lastBalR===null ? `F${r}` : `G${lastBalR}+F${r}`;
 
-        ws2.getRow(r).height=20;
         D(ws2.getCell(`A${r}`),gIdx++,         even,'center');
         D(ws2.getCell(`B${r}`),t.time,          even,'left');
         D(ws2.getCell(`C${r}`),CAT[t.category]||t.category, even,'left');
