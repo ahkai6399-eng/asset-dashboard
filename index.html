@@ -555,7 +555,7 @@
       <!-- Quick stats -->
       <div class="grid grid-cols-3 gap-3">
         <div class="glass p-4 text-center">
-          <div style="font-size:0.62rem;color:#475569;letter-spacing:0.08em;margin-bottom:6px;">平均每月淨存入</div>
+          <div style="font-size:0.62rem;color:#475569;letter-spacing:0.08em;margin-bottom:6px;">當月淨存入</div>
           <div style="font-family:'JetBrains Mono',monospace;font-size:0.95rem;font-weight:700;color:#00D4FF;" class="sensitive" id="avgMonthly">—</div>
         </div>
         <div class="glass p-4 text-center">
@@ -1059,16 +1059,15 @@ function render() {
 
   // ── Stats ──
   document.getElementById('txCount').textContent = state.txs.length;
-  const normalTxs = state.txs.filter(t => t.type !== 'swap');
-  if (normalTxs.length > 0) {
-    const sum = normalTxs.reduce((a,t) => {
-      const rmEq = (t.category === 'bank' || t.category === 'mystock') ? t.amount : t.amount * RATE;
-      return a + rmEq;
-    }, 0);
-    document.getElementById('avgMonthly').textContent = fmt(sum / normalTxs.length, 'RM', 0);
-  } else {
-    document.getElementById('avgMonthly').textContent = '—';
-  }
+  // 當月淨存入：篩選本月交易（非 swap），折算 RM 後加總
+  const now = new Date();
+  const thisYM = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}`;
+  const monthTxs = state.txs.filter(t => t.type !== 'swap' && t.time && t.time.startsWith(thisYM));
+  const monthSum = monthTxs.reduce((a,t) => {
+    const rmEq = (t.category === 'bank' || t.category === 'mystock') ? t.amount : t.amount * RATE;
+    return a + rmEq;
+  }, 0);
+  document.getElementById('avgMonthly').textContent = monthTxs.length > 0 ? fmt(monthSum, 'RM', 0) : '—';
 
   // ── Portfolio ──
   const bkP  = pct(bk,  tot);
