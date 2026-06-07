@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 
@@ -1051,116 +1051,254 @@ function submitTransaction() {
 // ═══════════════════════════════════════════════
 //  EXCEL EXPORT
 // ═══════════════════════════════════════════════
-function exportExcel() {
-  const wb = XLSX.utils.book_new();
-  const numFmt = '#,##0.00';
+async function exportExcel() {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = '資產管理 APP';
+  workbook.created = new Date();
 
-  // ── 樣式helpers ──────────────────────────────────────────────
-  function hdrCell(v) {
-    return { v, t:'s', s:{
-      font:{ bold:true, color:{ rgb:'FFFFFF' }, sz:11 },
-      fill:{ fgColor:{ rgb:'1A3A2A' } },
-      alignment:{ horizontal:'center', vertical:'center', wrapText:true },
-      border:{ bottom:{ style:'thin', color:{ rgb:'00FF88' } } }
-    }};
+  // ── 色盤 ────────────────────────────────────────────────────
+  const C = {
+    titleBg:    'FF050A0F',
+    titleGreen: 'FF00FF88',
+    hdrBg:      'FF0F2318',
+    hdrFont:    'FFFFFFFF',
+    hdrBorder:  'FF1A5C38',
+    rowEven:    'FF0D1F17',
+    rowOdd:     'FF091510',
+    rowFont:    'FFD4E8DC',
+    summaryBg:  'FF0A2A18',
+    summaryFont:'FF00FF88',
+    summaryAlt: 'FFFFD700',
+    border:     'FF1E3D2A',
+  };
+
+  const FMT_NUM = '#,##0.00';
+  const FMT_PCT = '0.00%';
+
+  // ── 邊框 helper ─────────────────────────────────────────────
+  function border(color = C.border) {
+    const s = { style: 'thin', color: { argb: color } };
+    return { top: s, bottom: s, left: s, right: s };
   }
-  function numCell(v, evenRow) {
-    return { v, t:'n', z: numFmt, s:{
-      fill:{ fgColor:{ rgb: evenRow ? '0D1F17' : '0A1810' } },
-      alignment:{ horizontal:'right' },
-      numFmt
-    }};
-  }
-  function strCell(v, evenRow) {
-    return { v: v ?? '', t:'s', s:{
-      fill:{ fgColor:{ rgb: evenRow ? '0D1F17' : '0A1810' } },
-      alignment:{ horizontal:'center' }
-    }};
-  }
-  function labelCell(v) {
-    return { v, t:'s', s:{
-      font:{ bold:true, color:{ rgb:'00FF88' } },
-      alignment:{ horizontal:'left' }
-    }};
-  }
-  function valueCell(v, isNum) {
-    return isNum
-      ? { v, t:'n', z: numFmt, s:{ alignment:{ horizontal:'right' }, numFmt } }
-      : { v: v ?? '', t:'s', s:{ alignment:{ horizontal:'left' } } };
+  function borderAccent() {
+    return {
+      top:    { style: 'thin',   color: { argb: C.border } },
+      bottom: { style: 'medium', color: { argb: C.hdrBorder } },
+      left:   { style: 'thin',   color: { argb: C.border } },
+      right:  { style: 'thin',   color: { argb: C.border } },
+    };
   }
 
-  // ════════════════════════════════════════════════════
-  //  Sheet 1：資產大盤
-  // ════════════════════════════════════════════════════
-  const tot = totalRM();
-  const progress = parseFloat((tot / TARGET * 100).toFixed(4));
+  // ── 樣式套用 helpers ────────────────────────────────────────
+  function applyTitle(cell, text, size = 14) {
+    cell.value = text;
+    cell.font  = { bold: true, size, color: { argb: C.titleGreen }, name: 'Calibri' };
+    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.titleBg } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+  }
 
-  const snap = [
-    [ hdrCell('項目'), hdrCell('原始金額'), hdrCell('原始幣種'), hdrCell('折算RM'), hdrCell('說明') ],
-    [ labelCell('🏦 銀行存款'),  numCell(state.bank,    true),  strCell('RM',  true),  numCell(parseFloat(state.bank.toFixed(2)),           true),  strCell('直接計入',         true)  ],
-    [ labelCell('🇲🇾 大馬股票'), numCell(state.mystock, false), strCell('RM',  false), numCell(parseFloat(state.mystock.toFixed(2)),        false), strCell('直接計入',         false) ],
-    [ labelCell('🪙 USDT'),      numCell(state.usdt,    true),  strCell('USD', true),  numCell(parseFloat(usdtRM().toFixed(2)),             true),  strCell(`USD × ${RATE}`,    true)  ],
-    [ labelCell('🇺🇸 美國股票'), numCell(state.usstock, false), strCell('USD', false), numCell(parseFloat(usstockRM().toFixed(2)),          false), strCell(`USD × ${RATE}`,    false) ],
-    [],
-    [ hdrCell('匯總'),           hdrCell(''),            hdrCell(''),            hdrCell('數值'),            hdrCell('') ],
-    [ labelCell('總資產 (RM)'),  {v:'', t:'s'}, {v:'', t:'s'}, numCell(parseFloat(tot.toFixed(2)),     true),  strCell('', true)  ],
-    [ labelCell('目標 (RM)'),    {v:'', t:'s'}, {v:'', t:'s'}, numCell(TARGET,                         false), strCell('', false) ],
-    [ labelCell('達成進度'),     {v:'', t:'s'}, {v:'', t:'s'}, valueCell(progress + '%',               false), strCell('', false) ],
-    [ labelCell('導出時間'),     {v:'', t:'s'}, {v:'', t:'s'}, valueCell(new Date().toLocaleString('zh-TW'), false), strCell('', false) ],
+  function applySubtitle(cell, text) {
+    cell.value = text;
+    cell.font  = { size: 9, color: { argb: 'FF5A8A6A' }, name: 'Calibri' };
+    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.titleBg } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+  }
+
+  function applyHeader(cell, text, hAlign = 'center') {
+    cell.value = text;
+    cell.font  = { bold: true, size: 10, color: { argb: C.hdrFont }, name: 'Calibri' };
+    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.hdrBg } };
+    cell.alignment = { horizontal: hAlign, vertical: 'middle' };
+    cell.border = borderAccent();
+  }
+
+  function applyData(cell, value, even, hAlign = 'left', numFmt = null) {
+    cell.value = value;
+    cell.font  = { size: 10, color: { argb: C.rowFont }, name: 'Calibri' };
+    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: even ? C.rowEven : C.rowOdd } };
+    cell.alignment = { horizontal: hAlign, vertical: 'middle' };
+    cell.border = border();
+    if (numFmt) cell.numFmt = numFmt;
+  }
+
+  function applySummary(cell, value, hAlign = 'left', numFmt = null, golden = false) {
+    cell.value = value;
+    cell.font  = { bold: true, size: 11, color: { argb: golden ? C.summaryAlt : C.summaryFont }, name: 'Calibri' };
+    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.summaryBg } };
+    cell.alignment = { horizontal: hAlign, vertical: 'middle' };
+    cell.border = border(C.hdrBorder);
+    if (numFmt) cell.numFmt = numFmt;
+  }
+
+  function applyEmpty(cell, even = true) {
+    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: even ? C.rowEven : C.rowOdd } };
+    cell.border = border();
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  SHEET 1：資產大盤
+  // ════════════════════════════════════════════════════════════
+  const ws1 = workbook.addWorksheet('資產大盤');
+  ws1.properties.defaultRowHeight = 20;
+  ws1.columns = [
+    { key:'A', width: 22 },
+    { key:'B', width: 16 },
+    { key:'C', width: 10 },
+    { key:'D', width: 18 },
+    { key:'E', width: 16 },
   ];
 
-  const ws1 = XLSX.utils.aoa_to_sheet(snap);
-  ws1['!cols'] = [{wch:18},{wch:14},{wch:10},{wch:16},{wch:14}];
-  ws1['!rows'] = [{hpt:22}]; // 首行高度
-  XLSX.utils.book_append_sheet(wb, ws1, '資產大盤');
+  // ── 標題區（rows 1-2）───────────────────────────────────────
+  ws1.mergeCells('A1:E1');
+  applyTitle(ws1.getCell('A1'), '資產管理儀表板  ·  ASSET MANAGEMENT DASHBOARD', 14);
+  ws1.getRow(1).height = 34;
 
-  // ════════════════════════════════════════════════════
-  //  Sheet 2：變動流水明細
-  // ════════════════════════════════════════════════════
-  const catLabel = { bank:'銀行存款', mystock:'大馬股票', usdt:'USDT 錢包', usstock:'美國股票' };
-  const hdr2 = ['序號','時間','資產類別','金額','原始幣種','折算RM','備注'].map(hdrCell);
+  ws1.mergeCells('A2:E2');
+  applySubtitle(ws1.getCell('A2'),
+    `導出時間：${new Date().toLocaleString('zh-TW')}　　匯率：1 USD = ${RATE} RM　　目標：RM ${TARGET.toLocaleString('en', { minimumFractionDigits: 2 })}`);
+  ws1.getRow(2).height = 18;
 
-  const rows2 = state.txs.length
-    ? state.txs.map((t, i) => {
-        const isRM = (t.category === 'bank' || t.category === 'mystock');
-        const rmEq = parseFloat((isRM ? t.amount : t.amount * RATE).toFixed(2));
-        const even = i % 2 === 0;
-        return [
-          strCell(i + 1,                          even),
-          strCell(t.time,                         even),
-          strCell(catLabel[t.category] || t.category, even),
-          numCell(t.amount,                       even),   // 純數字，無幣種
-          strCell(isRM ? 'RM' : 'USD',            even),   // 獨立幣種列
-          numCell(rmEq,                           even),   // 純數字
-          strCell(t.note || '',                   even),
-        ];
-      })
-    : [[ {v:'（暫無記錄）', t:'s', s:{ alignment:{ horizontal:'center' } }},
-         {v:'', t:'s'},{v:'', t:'s'},{v:'', t:'s'},{v:'', t:'s'},{v:'', t:'s'},{v:'', t:'s'} ]];
+  // 分隔空行 row 3
+  ws1.getRow(3).height = 6;
+  ws1.mergeCells('A3:E3');
+  ws1.getCell('A3').fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF010608' } };
 
-  // 尾部合計行
-  const totalRMVal = state.txs.reduce((acc, t) => {
+  // ── 資產明細表頭（row 4）────────────────────────────────────
+  ws1.getRow(4).height = 26;
+  [['A','資產類別','left'],['B','原始金額','right'],['C','幣種','center'],['D','折算 RM','right'],['E','說明','center']]
+    .forEach(([col, txt, align]) => applyHeader(ws1.getCell(`${col}4`), txt, align));
+
+  // ── 資產明細數據（rows 5-8）─────────────────────────────────
+  const assets = [
+    { label:'🏦 銀行存款',   val: state.bank,    ccy:'RM',  rmFn: `B5`,       rmR: state.bank,    note:'直接計入' },
+    { label:'🇲🇾 大馬股票', val: state.mystock, ccy:'RM',  rmFn: `B6`,       rmR: state.mystock, note:'直接計入' },
+    { label:'🪙 USDT',       val: state.usdt,    ccy:'USD', rmFn: `B7*${RATE}`, rmR: usdtRM(),    note:`× ${RATE}` },
+    { label:'🇺🇸 美國股票', val: state.usstock, ccy:'USD', rmFn: `B8*${RATE}`, rmR: usstockRM(), note:`× ${RATE}` },
+  ];
+  assets.forEach((a, i) => {
+    const r = 5 + i, even = i % 2 === 0;
+    ws1.getRow(r).height = 22;
+    applyData(ws1.getCell(`A${r}`), a.label, even, 'left');
+    applyData(ws1.getCell(`B${r}`), a.val,   even, 'right', FMT_NUM);
+    applyData(ws1.getCell(`C${r}`), a.ccy,   even, 'center');
+    const dCell = ws1.getCell(`D${r}`);
+    applyData(dCell, { formula: a.rmFn, result: parseFloat(a.rmR.toFixed(2)) }, even, 'right', FMT_NUM);
+    applyData(ws1.getCell(`E${r}`), a.note,  even, 'center');
+  });
+
+  // 分隔空行 row 9
+  ws1.getRow(9).height = 6;
+  'ABCDE'.split('').forEach(c => {
+    ws1.getCell(`${c}9`).fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF010608' } };
+  });
+
+  // ── 匯總區表頭（row 10）─────────────────────────────────────
+  ws1.getRow(10).height = 26;
+  ws1.mergeCells('A10:C10');
+  applyHeader(ws1.getCell('A10'), '匯總', 'center');
+  applyHeader(ws1.getCell('D10'), '數值', 'right');
+  applyHeader(ws1.getCell('E10'), '說明', 'center');
+
+  // ── 匯總數值（rows 11-13）───────────────────────────────────
+  const summaryRows = [
+    { label:'💰 總資產 (RM)', formula:'SUM(D5:D8)', result: parseFloat(totalRM().toFixed(2)),         fmt: FMT_NUM, note:'銀行＋馬股＋USDT×4＋美股×4', golden: true  },
+    { label:'🎯 目標 (RM)',   value: TARGET,                                                           fmt: FMT_NUM, note:`RM ${TARGET.toLocaleString()}`,  golden: false },
+    { label:'📈 達成進度',    formula:'D11/D12',    result: parseFloat((totalRM()/TARGET).toFixed(6)), fmt: FMT_PCT, note:'自動更新',                      golden: false },
+  ];
+  summaryRows.forEach((s, i) => {
+    const r = 11 + i;
+    ws1.getRow(r).height = 24;
+    ws1.mergeCells(`A${r}:C${r}`);
+    applySummary(ws1.getCell(`A${r}`), s.label, 'left', null, s.golden);
+    const dCell = ws1.getCell(`D${r}`);
+    applySummary(dCell, s.formula ? { formula: s.formula, result: s.result } : s.value, 'right', s.fmt, s.golden);
+    applySummary(ws1.getCell(`E${r}`), s.note, 'center', null, false);
+  });
+
+  // ════════════════════════════════════════════════════════════
+  //  SHEET 2：變動流水明細
+  // ════════════════════════════════════════════════════════════
+  const ws2 = workbook.addWorksheet('變動流水明細');
+  ws2.properties.defaultRowHeight = 20;
+  ws2.columns = [
+    { key:'A', width:  6 },
+    { key:'B', width: 22 },
+    { key:'C', width: 14 },
+    { key:'D', width: 14 },
+    { key:'E', width: 10 },
+    { key:'F', width: 16 },
+    { key:'G', width: 24 },
+  ];
+
+  // 標題
+  ws2.mergeCells('A1:G1');
+  applyTitle(ws2.getCell('A1'), '變動流水明細  ·  所有資產修正記錄', 13);
+  ws2.getRow(1).height = 30;
+
+  // 表頭 row 2
+  ws2.getRow(2).height = 26;
+  [['A','#','center'],['B','時間','left'],['C','資產類別','left'],
+   ['D','金額','right'],['E','幣種','center'],['F','折算 RM','right'],['G','備注','left']]
+    .forEach(([col, txt, align]) => applyHeader(ws2.getCell(`${col}2`), txt, align));
+
+  // 數據 rows 3+
+  const DATA_START = 3;
+  const catLabelMap = { bank:'銀行存款', mystock:'大馬股票', usdt:'USDT 錢包', usstock:'美國股票' };
+
+  if (!state.txs.length) {
+    ws2.mergeCells('A3:G3');
+    ws2.getCell('A3').value = '（暫無記錄）';
+    ws2.getCell('A3').alignment = { horizontal:'center', vertical:'middle' };
+    ws2.getCell('A3').font = { color:{ argb:'FF5A8A6A' }, italic: true };
+    ws2.getCell('A3').fill = { type:'pattern', pattern:'solid', fgColor:{ argb: C.rowEven } };
+  } else {
+    state.txs.forEach((t, i) => {
+      const r = DATA_START + i, even = i % 2 === 0;
+      ws2.getRow(r).height = 20;
+      const isRM = (t.category === 'bank' || t.category === 'mystock');
+      const rmResult = parseFloat((isRM ? t.amount : t.amount * RATE).toFixed(2));
+      const rmFormula = isRM ? `D${r}` : `D${r}*${RATE}`;
+
+      applyData(ws2.getCell(`A${r}`), i + 1,                                    even, 'center');
+      applyData(ws2.getCell(`B${r}`), t.time,                                   even, 'left');
+      applyData(ws2.getCell(`C${r}`), catLabelMap[t.category] || t.category,    even, 'left');
+      applyData(ws2.getCell(`D${r}`), t.amount,                                 even, 'right', FMT_NUM);
+      applyData(ws2.getCell(`E${r}`), isRM ? 'RM' : 'USD',                      even, 'center');
+      applyData(ws2.getCell(`F${r}`), { formula: rmFormula, result: rmResult }, even, 'right', FMT_NUM);
+      applyData(ws2.getCell(`G${r}`), t.note || '',                             even, 'left');
+    });
+  }
+
+  // 合計行
+  const DATA_END = DATA_START + Math.max(state.txs.length - 1, 0);
+  const SUM_ROW  = DATA_END + 2;
+  ws2.getRow(SUM_ROW).height = 26;
+  ws2.mergeCells(`A${SUM_ROW}:E${SUM_ROW}`);
+  applySummary(ws2.getCell(`A${SUM_ROW}`), '淨變動合計 (折算 RM)', 'right', null, false);
+
+  const fCell = ws2.getCell(`F${SUM_ROW}`);
+  const sumResult = parseFloat(state.txs.reduce((acc, t) => {
     const isRM = (t.category === 'bank' || t.category === 'mystock');
     return acc + (isRM ? t.amount : t.amount * RATE);
-  }, 0);
-  const sumRow = [
-    hdrCell('合計'), hdrCell(''), hdrCell(''), hdrCell(''), hdrCell(''),
-    { v: parseFloat(totalRMVal.toFixed(2)), t:'n', z: numFmt, s:{
-        font:{ bold:true, color:{ rgb:'00FF88' } },
-        fill:{ fgColor:{ rgb:'1A3A2A' } },
-        alignment:{ horizontal:'right' }, numFmt
-    }},
-    hdrCell('')
-  ];
+  }, 0).toFixed(2));
+  applySummary(fCell,
+    state.txs.length ? { formula: `SUM(F${DATA_START}:F${DATA_END})`, result: sumResult } : 0,
+    'right', FMT_NUM, true);
+  applySummary(ws2.getCell(`G${SUM_ROW}`), '', 'left');
 
-  const ws2 = XLSX.utils.aoa_to_sheet([hdr2, ...rows2, [], sumRow]);
-  ws2['!cols'] = [{wch:6},{wch:22},{wch:14},{wch:12},{wch:10},{wch:14},{wch:22}];
-  XLSX.utils.book_append_sheet(wb, ws2, '變動流水明細');
-
-  // ── 寫出文件 ─────────────────────────────────────
-  const dateStr = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(wb, `資產管理_${dateStr}.xlsx`, { bookType:'xlsx', cellStyles:true });
-  showToast('📊 Excel 導出成功！');
+  // ── 下載 ────────────────────────────────────────────────────
+  const buf  = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {
+    href: url,
+    download: `資產管理_${new Date().toISOString().split('T')[0]}.xlsx`
+  });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('📊 Premium Excel 導出成功！');
 }
 
 // ═══════════════════════════════════════════════
