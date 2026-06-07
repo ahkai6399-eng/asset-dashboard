@@ -1052,31 +1052,114 @@ function submitTransaction() {
 //  EXCEL EXPORT
 // ═══════════════════════════════════════════════
 function exportExcel() {
-  if (!state.txs.length) { showToast('⚠️ 暫無記錄可導出'); return; }
-  const catLabel = { bank:'銀行存款', mystock:'大馬股票', usdt:'USDT 錢包', usstock:'美國股票' };
-  const headers  = ['序號','時間','資產類別','金額','幣種','折算RM','備注'];
-  const rows     = state.txs.map((t, i) => {
-    const isRM = (t.category === 'bank' || t.category === 'mystock');
-    const rmEq = isRM ? t.amount : t.amount * RATE;
-    return [i+1, t.time, catLabel[t.category]||t.category, t.amount, t.currency, parseFloat(rmEq.toFixed(2)), t.note||''];
-  });
+  const wb = XLSX.utils.book_new();
+  const numFmt = '#,##0.00';
+
+  // ── 樣式helpers ──────────────────────────────────────────────
+  function hdrCell(v) {
+    return { v, t:'s', s:{
+      font:{ bold:true, color:{ rgb:'FFFFFF' }, sz:11 },
+      fill:{ fgColor:{ rgb:'1A3A2A' } },
+      alignment:{ horizontal:'center', vertical:'center', wrapText:true },
+      border:{ bottom:{ style:'thin', color:{ rgb:'00FF88' } } }
+    }};
+  }
+  function numCell(v, evenRow) {
+    return { v, t:'n', z: numFmt, s:{
+      fill:{ fgColor:{ rgb: evenRow ? '0D1F17' : '0A1810' } },
+      alignment:{ horizontal:'right' },
+      numFmt
+    }};
+  }
+  function strCell(v, evenRow) {
+    return { v: v ?? '', t:'s', s:{
+      fill:{ fgColor:{ rgb: evenRow ? '0D1F17' : '0A1810' } },
+      alignment:{ horizontal:'center' }
+    }};
+  }
+  function labelCell(v) {
+    return { v, t:'s', s:{
+      font:{ bold:true, color:{ rgb:'00FF88' } },
+      alignment:{ horizontal:'left' }
+    }};
+  }
+  function valueCell(v, isNum) {
+    return isNum
+      ? { v, t:'n', z: numFmt, s:{ alignment:{ horizontal:'right' }, numFmt } }
+      : { v: v ?? '', t:'s', s:{ alignment:{ horizontal:'left' } } };
+  }
+
+  // ════════════════════════════════════════════════════
+  //  Sheet 1：資產大盤
+  // ════════════════════════════════════════════════════
   const tot = totalRM();
-  const summary = [
+  const progress = parseFloat((tot / TARGET * 100).toFixed(4));
+
+  const snap = [
+    [ hdrCell('項目'), hdrCell('原始金額'), hdrCell('原始幣種'), hdrCell('折算RM'), hdrCell('說明') ],
+    [ labelCell('🏦 銀行存款'),  numCell(state.bank,    true),  strCell('RM',  true),  numCell(parseFloat(state.bank.toFixed(2)),           true),  strCell('直接計入',         true)  ],
+    [ labelCell('🇲🇾 大馬股票'), numCell(state.mystock, false), strCell('RM',  false), numCell(parseFloat(state.mystock.toFixed(2)),        false), strCell('直接計入',         false) ],
+    [ labelCell('🪙 USDT'),      numCell(state.usdt,    true),  strCell('USD', true),  numCell(parseFloat(usdtRM().toFixed(2)),             true),  strCell(`USD × ${RATE}`,    true)  ],
+    [ labelCell('🇺🇸 美國股票'), numCell(state.usstock, false), strCell('USD', false), numCell(parseFloat(usstockRM().toFixed(2)),          false), strCell(`USD × ${RATE}`,    false) ],
     [],
-    ['=== 資產快照 ==='],
-    ['銀行存款 (RM)',   state.bank],
-    ['大馬股票 (RM)',  state.mystock],
-    ['USDT (USD)',     state.usdt,    '','','', parseFloat(usdtRM().toFixed(2))],
-    ['美國股票 (USD)', state.usstock, '','','', parseFloat(usstockRM().toFixed(2))],
-    ['總計 (RM)','','','','', parseFloat(tot.toFixed(2))],
-    ['目標 (RM)','','','','', TARGET],
-    ['進度 (%)','','','','', parseFloat((tot/TARGET*100).toFixed(2))]
+    [ hdrCell('匯總'),           hdrCell(''),            hdrCell(''),            hdrCell('數值'),            hdrCell('') ],
+    [ labelCell('總資產 (RM)'),  {v:'', t:'s'}, {v:'', t:'s'}, numCell(parseFloat(tot.toFixed(2)),     true),  strCell('', true)  ],
+    [ labelCell('目標 (RM)'),    {v:'', t:'s'}, {v:'', t:'s'}, numCell(TARGET,                         false), strCell('', false) ],
+    [ labelCell('達成進度'),     {v:'', t:'s'}, {v:'', t:'s'}, valueCell(progress + '%',               false), strCell('', false) ],
+    [ labelCell('導出時間'),     {v:'', t:'s'}, {v:'', t:'s'}, valueCell(new Date().toLocaleString('zh-TW'), false), strCell('', false) ],
   ];
-  const wb  = XLSX.utils.book_new();
-  const ws  = XLSX.utils.aoa_to_sheet([headers, ...rows, ...summary]);
-  ws['!cols'] = [{wch:6},{wch:22},{wch:14},{wch:12},{wch:8},{wch:14},{wch:20}];
-  XLSX.utils.book_append_sheet(wb, ws, '資產變動記錄');
-  XLSX.writeFile(wb, `資產管理_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+  const ws1 = XLSX.utils.aoa_to_sheet(snap);
+  ws1['!cols'] = [{wch:18},{wch:14},{wch:10},{wch:16},{wch:14}];
+  ws1['!rows'] = [{hpt:22}]; // 首行高度
+  XLSX.utils.book_append_sheet(wb, ws1, '資產大盤');
+
+  // ════════════════════════════════════════════════════
+  //  Sheet 2：變動流水明細
+  // ════════════════════════════════════════════════════
+  const catLabel = { bank:'銀行存款', mystock:'大馬股票', usdt:'USDT 錢包', usstock:'美國股票' };
+  const hdr2 = ['序號','時間','資產類別','金額','原始幣種','折算RM','備注'].map(hdrCell);
+
+  const rows2 = state.txs.length
+    ? state.txs.map((t, i) => {
+        const isRM = (t.category === 'bank' || t.category === 'mystock');
+        const rmEq = parseFloat((isRM ? t.amount : t.amount * RATE).toFixed(2));
+        const even = i % 2 === 0;
+        return [
+          strCell(i + 1,                          even),
+          strCell(t.time,                         even),
+          strCell(catLabel[t.category] || t.category, even),
+          numCell(t.amount,                       even),   // 純數字，無幣種
+          strCell(isRM ? 'RM' : 'USD',            even),   // 獨立幣種列
+          numCell(rmEq,                           even),   // 純數字
+          strCell(t.note || '',                   even),
+        ];
+      })
+    : [[ {v:'（暫無記錄）', t:'s', s:{ alignment:{ horizontal:'center' } }},
+         {v:'', t:'s'},{v:'', t:'s'},{v:'', t:'s'},{v:'', t:'s'},{v:'', t:'s'},{v:'', t:'s'} ]];
+
+  // 尾部合計行
+  const totalRMVal = state.txs.reduce((acc, t) => {
+    const isRM = (t.category === 'bank' || t.category === 'mystock');
+    return acc + (isRM ? t.amount : t.amount * RATE);
+  }, 0);
+  const sumRow = [
+    hdrCell('合計'), hdrCell(''), hdrCell(''), hdrCell(''), hdrCell(''),
+    { v: parseFloat(totalRMVal.toFixed(2)), t:'n', z: numFmt, s:{
+        font:{ bold:true, color:{ rgb:'00FF88' } },
+        fill:{ fgColor:{ rgb:'1A3A2A' } },
+        alignment:{ horizontal:'right' }, numFmt
+    }},
+    hdrCell('')
+  ];
+
+  const ws2 = XLSX.utils.aoa_to_sheet([hdr2, ...rows2, [], sumRow]);
+  ws2['!cols'] = [{wch:6},{wch:22},{wch:14},{wch:12},{wch:10},{wch:14},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, ws2, '變動流水明細');
+
+  // ── 寫出文件 ─────────────────────────────────────
+  const dateStr = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `資產管理_${dateStr}.xlsx`, { bookType:'xlsx', cellStyles:true });
   showToast('📊 Excel 導出成功！');
 }
 
