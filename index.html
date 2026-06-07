@@ -384,7 +384,7 @@
             <div style="font-size:1.05rem;font-weight:700;margin-top:2px;">
               <span class="neon-green neon-glow-green sensitive" id="totalRM">RM 0</span>
               <span style="color:#334155;margin:0 8px;">/</span>
-              <span style="color:#475569;font-size:0.85rem;">RM 300,000</span>
+              <span style="color:#475569;font-size:0.85rem;">RM 100,000</span>
             </div>
           </div>
           <div style="text-align:right;">
@@ -397,14 +397,14 @@
         </div>
         <div class="flex justify-between mt-2" style="font-size:0.68rem;color:#334155;">
           <span>RM 0</span>
-          <span class="sensitive" id="remainAmt">還需 RM 300,000</span>
-          <span>RM 300,000</span>
+          <span class="sensitive" id="remainAmt">還需 RM 100,000</span>
+          <span>RM 100,000</span>
         </div>
       </div>
 
       <!-- Countdown -->
       <div class="glass p-6">
-        <div style="font-size:0.7rem;color:#475569;letter-spacing:0.1em;font-weight:600;margin-bottom:14px;">⏳ 40個月資產增值計劃倒計時</div>
+        <div style="font-size:0.7rem;color:#475569;letter-spacing:0.1em;font-weight:600;margin-bottom:14px;">⏳ 資產增值計劃倒計時（截止 2027年7月1日）</div>
         <div class="flex items-start gap-3 flex-wrap">
           <div class="countdown-unit"><div class="countdown-num" id="cdDays">000</div><div class="countdown-label">DAYS</div></div>
           <div class="sep">:</div>
@@ -624,8 +624,8 @@
 //  CONSTANTS
 // ═══════════════════════════════════════════════
 const RATE   = 4.00;   // 1 USD = 4.00 RM
-const TARGET = 300000; // RM
-const PLAN_MONTHS = 40;
+const TARGET = 100000; // RM
+const PLAN_END = new Date('2027-07-01T00:00:00');
 
 // ═══════════════════════════════════════════════
 //  STATE
@@ -906,7 +906,7 @@ function updateTip(bk, my, ud, us, tot) {
   else if (usdTotal > 65) el.textContent = `美元資產（USDT + 美股）合計佔 ${usdTotal}%，匯率風險偏高，可適當增配大馬本地資產平衡。`;
   else if (us > 50)  el.textContent = `美國股票佔比較高（${us}%），注意市場波動風險，可留意馬股定投機會。`;
   else if (my > 60)  el.textContent = `大馬股票佔比較大（${my}%），可考慮分散至 USDT 或美股作全球配置。`;
-  else               el.textContent = '資產配置相對均衡 👍 繼續保持月度紀律儲蓄，穩步向 RM 300,000 目標邁進！';
+  else               el.textContent = '資產配置相對均衡 👍 繼續保持月度紀律儲蓄，穩步向 RM 100,000 目標邁進！';
 }
 
 function renderTable() {
@@ -938,9 +938,7 @@ function renderTable() {
 //  COUNTDOWN
 // ═══════════════════════════════════════════════
 function getEndDate() {
-  const d = new Date(state.planStart);
-  d.setMonth(d.getMonth() + PLAN_MONTHS);
-  return d;
+  return PLAN_END;
 }
 
 function updateCountdown() {
