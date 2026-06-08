@@ -339,6 +339,49 @@
     }
     #toast.show { transform: translateY(0); opacity: 1; }
 
+    /* ── Filter Bar ── */
+    .filter-bar { margin-bottom: 16px; }
+    .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+    .filter-select, .filter-date {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 7px 12px;
+      color: #CBD5E1; font-size: 0.78rem;
+      outline: none; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .filter-select:focus, .filter-date:focus { border-color: rgba(0,255,136,0.4); }
+    .filter-select option { background: #0D1520; }
+    .filter-date { color-scheme: dark; }
+    .filter-sep { color: #334155; font-size: 0.8rem; align-self: center; }
+    .filter-clear {
+      background: rgba(255,107,107,0.1); color: #FF6B6B;
+      border: 1px solid rgba(255,107,107,0.25);
+      border-radius: 10px; padding: 7px 12px;
+      font-size: 0.78rem; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .filter-clear:hover { background: rgba(255,107,107,0.18); }
+    .filter-count { font-size: 0.72rem; color: #475569; align-self: center; }
+    .filter-active { border-color: rgba(0,255,136,0.4) !important; color: #00FF88 !important; }
+
+    /* ── LHDN year switcher ── */
+    .lhdn-year-ctrl {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .lhdn-year-btn {
+      background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2);
+      border-radius: 8px; padding: 3px 10px;
+      color: #A78BFA; font-size: 0.78rem; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .lhdn-year-btn:hover { background: rgba(167,139,250,0.2); }
+    .lhdn-year-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem; font-weight: 700; color: #C4B5FD;
+    }
+
     /* ── Custom Dropdown ── */
     .cdrop { position: relative; }
     .cdrop-trigger {
@@ -568,13 +611,18 @@
 
       <!-- LHDN 5th Card -->
       <div class="asset-card lhdn" style="border-color:rgba(167,139,250,0.18);">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between mb-2">
           <div style="font-size:1.3rem;">📊</div>
           <div class="lhdn-badge">LHDN</div>
         </div>
+        <div class="lhdn-year-ctrl">
+          <button class="lhdn-year-btn" onclick="lhdnYearShift(-1)">◀</button>
+          <span class="lhdn-year-label" id="lhdnYearLabel">2026年</span>
+          <button class="lhdn-year-btn" onclick="lhdnYearShift(1)">▶</button>
+        </div>
         <div style="font-size:0.7rem;color:#475569;margin-bottom:5px;">LHDN 申報資產</div>
         <div class="asset-amount sensitive" style="color:#A78BFA;" id="lhdnAmt">RM 0.00</div>
-        <div style="font-size:0.68rem;color:#7C6FA0;margin-top:3px;" id="lhdnSub">今年度累計申報</div>
+        <div style="font-size:0.68rem;color:#7C6FA0;margin-top:3px;" id="lhdnSub">本年度累計申報</div>
         <div class="lhdn-disclaimer">⚠️ 追蹤用途，已計入銀行餘額，不重複計入總資產</div>
       </div>
 
@@ -653,6 +701,46 @@
 
     <!-- ══════════ HISTORY ══════════ -->
     <section id="history" class="section pt-5 space-y-5">
+      <!-- Filter Bar -->
+      <div class="glass p-4 filter-bar">
+        <div class="filter-row">
+          <select id="filterYear" class="filter-select" onchange="applyFilters()">
+            <option value="">全部年份</option>
+          </select>
+          <select id="filterMonth" class="filter-select" onchange="applyFilters()">
+            <option value="">全部月份</option>
+            <option value="01">1月</option><option value="02">2月</option><option value="03">3月</option>
+            <option value="04">4月</option><option value="05">5月</option><option value="06">6月</option>
+            <option value="07">7月</option><option value="08">8月</option><option value="09">9月</option>
+            <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+          </select>
+          <span class="filter-sep">自訂</span>
+          <input type="date" id="filterFrom" class="filter-date" onchange="applyFilters()" title="開始日期" />
+          <span class="filter-sep">→</span>
+          <input type="date" id="filterTo" class="filter-date" onchange="applyFilters()" title="結束日期" />
+        </div>
+        <div class="filter-row">
+          <select id="filterType" class="filter-select" onchange="applyFilters()">
+            <option value="">全部類型</option>
+            <option value="deposit">💰 存款</option>
+            <option value="withdraw">💸 提款</option>
+            <option value="swap">🔄 置換</option>
+            <option value="lhdn_supplement">📋 補額LHDN</option>
+          </select>
+          <select id="filterCat" class="filter-select" onchange="applyFilters()">
+            <option value="">全部類別</option>
+            <option value="bank">🏦 銀行</option>
+            <option value="mystock">🇲🇾 馬股</option>
+            <option value="usdt">🪙 USDT</option>
+            <option value="usstock">🇺🇸 美股</option>
+            <option value="lhdn">📊 LHDN(雙寫)</option>
+            <option value="lhdn_supplement">📋 補額LHDN</option>
+          </select>
+          <button class="filter-clear" onclick="clearFilters()">✕ 清除</button>
+          <span class="filter-count" id="filterCount"></span>
+        </div>
+      </div>
+
       <div class="glass-bright p-6">
         <div class="flex items-center justify-between mb-4">
           <div style="font-size:0.7rem;color:#475569;letter-spacing:0.1em;font-weight:600;">📋 資產變動記錄</div>
@@ -715,6 +803,9 @@
             <div class="cdrop-item" onclick="selectOpType('swap','🔄 資產置換',this)">
               <span>🔄 資產置換</span><span class="cdrop-check">✓</span>
             </div>
+            <div class="cdrop-item" onclick="selectOpType('lhdn_supplement','📋 補額LHDN',this)" style="border-top:1px solid rgba(167,139,250,0.15);">
+              <span>📋 補額LHDN</span><span class="cdrop-check">✓</span>
+            </div>
           </div>
         </div>
       </div>
@@ -747,6 +838,11 @@
               </div>
             </div>
           </div>
+        </div>
+        <!-- 自定義日期（補錄歷史用） -->
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">記賬日期 <span style="color:#334155;font-size:0.68rem;">（選填，留空 = 今天）</span></label>
+          <input class="neo-input" id="modalDate" type="date" style="color:#CBD5E1;color-scheme:dark;" />
         </div>
         <!-- 金額 -->
         <div>
@@ -841,6 +937,29 @@
         </div>
       </div>
 
+      <!-- ④ 補額LHDN 模式 -->
+      <div id="lhdnSupForm" style="display:none;" class="space-y-4">
+        <div style="background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.18);border-radius:12px;padding:12px 14px;font-size:0.78rem;color:#A78BFA;">
+          📋 純稅務補記，<strong>不影響任何賬戶餘額</strong>，僅累加指定年份的 LHDN 申報總額。
+        </div>
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">申報日期 <span style="color:#334155;font-size:0.68rem;">（決定計入哪個年度）</span></label>
+          <input class="neo-input" id="lhdnSupDate" type="date" style="color:#CBD5E1;color-scheme:dark;" oninput="updateLhdnPreview()" />
+        </div>
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">申報金額 (RM)</label>
+          <input class="neo-input" id="lhdnSupAmount" type="number" placeholder="輸入金額（純數字）" step="0.01" min="0" oninput="updateLhdnPreview()" />
+        </div>
+        <div>
+          <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">備注（選填）</label>
+          <input class="neo-input" id="lhdnSupNote" type="text" placeholder="例：2026年1月薪資" />
+        </div>
+        <div id="lhdnSupPreview" style="background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.18);border-radius:12px;padding:12px 16px;font-size:0.82rem;display:none;">
+          <div style="color:#7C6FA0;margin-bottom:4px;font-size:0.72rem;letter-spacing:0.06em;">預覽</div>
+          <div id="lhdnSupPreviewText" style="font-family:'JetBrains Mono',monospace;color:#C4B5FD;"></div>
+        </div>
+      </div>
+
       <!-- 按鈕 -->
       <div class="flex gap-3 pt-2">
         <button class="btn-secondary" onclick="closeModal()">取消</button>
@@ -869,7 +988,8 @@ let state = {
   mystock:  0,   // RM (direct, no conversion)
   usdt:     0,   // USD
   usstock:  0,   // USD
-  lhdn:     0,   // RM — LHDN tax declaration accumulator (already in bank, not added to total)
+  lhdn:     0,   // RM — legacy running total (kept for compat)
+  lhdnByYear: {},// RM per year: { '2026': 1234, '2027': 0 }
   txs:      [],
   privacy:  false,
   currency: 'RM',
@@ -921,6 +1041,11 @@ async function loadState() {
       state.privacy  = privacy;
       state.currency = currency;
       if (!state.planStart) state.planStart = Date.now();
+      if (!state.lhdnByYear) state.lhdnByYear = {};
+      // migrate legacy lhdn running total into lhdnByYear
+      if (state.lhdn > 0 && Object.keys(state.lhdnByYear).length === 0) {
+        state.lhdnByYear[new Date().getFullYear().toString()] = state.lhdn;
+      }
       localStorage.setItem('wealthDash_v3', JSON.stringify(state));
       showSyncStatus('✅ 已同步', '#00FF88');
       setTimeout(() => { const e=document.getElementById('syncStatus'); if(e) e.style.opacity='0'; }, 2000);
@@ -946,6 +1071,7 @@ async function saveState() {
       usdt: state.usdt,
       usstock: state.usstock,
       lhdn: state.lhdn,
+      lhdnByYear: state.lhdnByYear,
       txs: state.txs,
       planStart: state.planStart
     };
@@ -977,6 +1103,86 @@ function mystockRM()  { return state.mystock; }
 function usdtRM()     { return state.usdt    * RATE; }
 function usstockRM()  { return state.usstock * RATE; }
 function totalRM()    { return bankRM() + mystockRM() + usdtRM() + usstockRM(); }
+
+// ── Date helpers ──────────────────────────────────
+function extractDate(t) {
+  if (t.date) return t.date;
+  const m = t.time && t.time.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  return m ? `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}` : '';
+}
+function extractYear(t)  { return extractDate(t).slice(0, 4); }
+function extractMonth(t) { return extractDate(t).slice(5, 7); }
+
+function getLhdnForYear(year) {
+  return state.lhdnByYear[year] || 0;
+}
+
+function makeDateTimeStr(dateVal) {
+  // dateVal: 'YYYY-MM-DD' string or ''
+  const d = dateVal ? new Date(dateVal + 'T12:00:00') : new Date();
+  return d.toLocaleDateString('zh-TW') + ' ' + d.toLocaleTimeString('zh-TW', {hour12:false});
+}
+function makeDateField(dateVal) {
+  // returns 'YYYY-MM-DD'
+  if (dateVal) return dateVal;
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+}
+
+// ── LHDN card year switcher ────────────────────────
+function lhdnYearShift(delta) {
+  _lhdnCardYear = String(parseInt(_lhdnCardYear) + delta);
+  render();
+}
+
+// ── Filter logic ──────────────────────────────────
+function populateFilterYears() {
+  const sel = document.getElementById('filterYear');
+  const years = [...new Set(state.txs.map(t => extractYear(t)).filter(Boolean))].sort();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部年份</option>';
+  years.forEach(y => {
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y + '年';
+    if (y === cur) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function applyFilters() {
+  const fYear  = document.getElementById('filterYear').value;
+  const fMonth = document.getElementById('filterMonth').value;
+  const fFrom  = document.getElementById('filterFrom').value;
+  const fTo    = document.getElementById('filterTo').value;
+  const fType  = document.getElementById('filterType').value;
+  const fCat   = document.getElementById('filterCat').value;
+
+  const hasFilter = fYear || fMonth || fFrom || fTo || fType || fCat;
+
+  // Mark active selects
+  ['filterYear','filterMonth','filterType','filterCat'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el.value) el.classList.add('filter-active'); else el.classList.remove('filter-active');
+  });
+  ['filterFrom','filterTo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el.value) el.classList.add('filter-active'); else el.classList.remove('filter-active');
+  });
+
+  renderTable(fYear, fMonth, fFrom, fTo, fType, fCat);
+}
+
+function clearFilters() {
+  ['filterYear','filterMonth','filterType','filterCat'].forEach(id => {
+    document.getElementById(id).value = '';
+    document.getElementById(id).classList.remove('filter-active');
+  });
+  ['filterFrom','filterTo'].forEach(id => {
+    document.getElementById(id).value = '';
+    document.getElementById(id).classList.remove('filter-active');
+  });
+  renderTable();
+}
 
 function pct(val, tot) { return tot === 0 ? 0 : Math.round(val / tot * 100); }
 
@@ -1093,8 +1299,10 @@ function render() {
   document.getElementById('usstockPct').textContent = pct(us, tot) + '% of total';
 
   // ── LHDN card ──
-  document.getElementById('lhdnAmt').textContent = fmt(state.lhdn, 'RM');
-  document.getElementById('lhdnSub').textContent = state.privacy ? '' : `今年累計申報 / 銀行已同步`;
+  const lhdnVal = getLhdnForYear(_lhdnCardYear);
+  document.getElementById('lhdnAmt').textContent      = fmt(lhdnVal, 'RM');
+  document.getElementById('lhdnYearLabel').textContent = _lhdnCardYear + '年';
+  document.getElementById('lhdnSub').textContent       = state.privacy ? '' : `${_lhdnCardYear}年 累計申報`;
 
   // ── Stats ──
   document.getElementById('txCount').textContent = state.txs.length;
@@ -1130,13 +1338,14 @@ function render() {
   document.getElementById('bkUsdtRM').textContent    = fmt(ud,  'RM');
   document.getElementById('bkUsstockRM').textContent = fmt(us,  'RM');
   document.getElementById('bkTotal').textContent     = fmt(tot, 'RM');
-  document.getElementById('bkLhdnRM').textContent    = fmt(state.lhdn, 'RM');
+  document.getElementById('bkLhdnRM').textContent    = fmt(getLhdnForYear(_lhdnCardYear), 'RM');
 
   // ── Smart tip ──
   updateTip(bkP, myP, udP, usP, tot);
 
   // ── Table ──
   renderTable();
+  populateFilterYears();
 }
 
 function updateTip(bk, my, ud, us, tot) {
@@ -1150,16 +1359,58 @@ function updateTip(bk, my, ud, us, tot) {
   else               el.textContent = '資產配置相對均衡 👍 繼續保持月度紀律儲蓄，穩步向 RM 100,000 目標邁進！';
 }
 
-function renderTable() {
+function renderTable(fYear='', fMonth='', fFrom='', fTo='', fType='', fCat='') {
   const tbody = document.getElementById('txBody');
   if (!state.txs.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#334155;padding:32px;font-size:0.82rem;">暫無記錄，點擊右下角 ＋ 開始記賬 🚀</td></tr>';
+    document.getElementById('filterCount').textContent = '';
     return;
   }
-  const CL = { bank:'🏦 銀行', mystock:'🇲🇾 馬股', usdt:'🪙 USDT', usstock:'🇺🇸 美股', lhdn:'📊 LHDN' };
+  const CL = { bank:'🏦 銀行', mystock:'🇲🇾 馬股', usdt:'🪙 USDT', usstock:'🇺🇸 美股', lhdn:'📊 LHDN', lhdn_supplement:'📋 補額' };
+
+  // apply filters
+  const txFiltered = state.txs.filter(t => {
+    const d = extractDate(t);
+    if (fYear  && extractYear(t)  !== fYear)  return false;
+    if (fMonth && extractMonth(t) !== fMonth) return false;
+    if (fFrom  && d && d < fFrom) return false;
+    if (fTo    && d && d > fTo)   return false;
+    if (fType) {
+      if (fType === 'lhdn_supplement') { if (t.type !== 'lhdn_supplement') return false; }
+      else if (t.type !== fType) return false;
+    }
+    if (fCat) {
+      if (fCat === 'lhdn_supplement') { if (t.type !== 'lhdn_supplement') return false; }
+      else if (t.category !== fCat)   return false;
+    }
+    return true;
+  });
+
+  const hasFilter = fYear || fMonth || fFrom || fTo || fType || fCat;
+  const countEl = document.getElementById('filterCount');
+  countEl.textContent = hasFilter ? `顯示 ${txFiltered.length} / ${state.txs.length} 筆` : '';
   const mono = `font-family:'JetBrains Mono',monospace;`;
-  tbody.innerHTML = [...state.txs].reverse().map((t, i) => {
-    const seq = state.txs.length - i;
+  if (!txFiltered.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#334155;padding:32px;font-size:0.82rem;">篩選無結果，請調整條件</td></tr>';
+    return;
+  }
+  // global seq based on original txs array position
+  const seqMap = new Map(state.txs.map((t,i) => [t.id, state.txs.length - i]));
+  tbody.innerHTML = [...txFiltered].reverse().map((t) => {
+    const seq = seqMap.get(t.id) ?? '—';
+    // 補額LHDN row
+    if (t.type === 'lhdn_supplement') {
+      const amtStr = state.privacy ? '****' : '+' + t.amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+      return `<tr>
+        <td style="color:#334155;${mono}">${seq}</td>
+        <td style="color:#475569;${mono}font-size:0.72rem;">${t.time}</td>
+        <td style="color:#A78BFA;">📋 補額LHDN</td>
+        <td style="color:#A78BFA;${mono}font-weight:700;" class="sensitive">${amtStr}</td>
+        <td style="color:#475569;">RM</td>
+        <td style="color:#7C6FA0;font-size:0.75rem;${mono}">稅務申報追蹤</td>
+        <td style="color:#475569;font-size:0.75rem;">${t.note||'—'}</td>
+      </tr>`;
+    }
     if (t.type === 'swap') {
       const fromStr = state.privacy ? '****' : t.fromAmount.toLocaleString('en-US',{minimumFractionDigits:2});
       const toStr   = state.privacy ? '****' : t.toAmount.toLocaleString('en-US',{minimumFractionDigits:2});
@@ -1246,10 +1497,11 @@ function setCurrency(c) {
 // ═══════════════════════════════════════════════
 //  MODAL — state
 // ═══════════════════════════════════════════════
-let _opType   = 'deposit';  // 'deposit' | 'withdraw' | 'swap'
+let _opType   = 'deposit';  // 'deposit' | 'withdraw' | 'swap' | 'lhdn_supplement'
 let _category = 'bank';
 let _swapFrom = 'bank';
 let _swapTo   = 'usdt';
+let _lhdnCardYear = new Date().getFullYear().toString();
 
 // ═══════════════════════════════════════════════
 //  CUSTOM DROPDOWN
@@ -1282,14 +1534,22 @@ function selectOpType(type, label, el) {
   _selectInDrop('dropOpType', el);
 
   const isSwap = type === 'swap';
-  document.getElementById('normalForm').style.display = isSwap ? 'none' : 'block';
-  document.getElementById('swapForm').style.display   = isSwap ? 'block' : 'none';
-  document.getElementById('modalPreview').style.display = 'none';
-  document.getElementById('swapPreview').style.display  = 'none';
+  const isLhdnSup = type === 'lhdn_supplement';
+  document.getElementById('normalForm').style.display    = (!isSwap && !isLhdnSup) ? 'block' : 'none';
+  document.getElementById('swapForm').style.display      = isSwap    ? 'block' : 'none';
+  document.getElementById('lhdnSupForm').style.display   = isLhdnSup ? 'block' : 'none';
+  document.getElementById('modalPreview').style.display  = 'none';
+  document.getElementById('swapPreview').style.display   = 'none';
+  document.getElementById('lhdnSupPreview').style.display= 'none';
 
-  if (!isSwap) {
+  if (!isSwap && !isLhdnSup) {
     document.getElementById('amtLabel').textContent = type === 'deposit' ? '存款金額' : '提款金額';
     document.getElementById('modalAmount').value = '';
+  }
+  if (isLhdnSup) {
+    // default date to today
+    const n = new Date();
+    document.getElementById('lhdnSupDate').value = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
   }
 }
 
@@ -1343,12 +1603,16 @@ function _refreshSwapRate() {
 // ═══════════════════════════════════════════════
 function openModal() {
   document.getElementById('modalBackdrop').classList.add('open');
-  document.getElementById('modalAmount').value = '';
-  document.getElementById('modalNote').value   = '';
-  document.getElementById('swapAmount').value  = '';
-  document.getElementById('swapNote').value    = '';
-  document.getElementById('modalPreview').style.display = 'none';
-  document.getElementById('swapPreview').style.display  = 'none';
+  document.getElementById('modalAmount').value  = '';
+  document.getElementById('modalNote').value    = '';
+  document.getElementById('modalDate').value    = '';
+  document.getElementById('swapAmount').value   = '';
+  document.getElementById('swapNote').value     = '';
+  document.getElementById('lhdnSupAmount').value= '';
+  document.getElementById('lhdnSupNote').value  = '';
+  document.getElementById('modalPreview').style.display  = 'none';
+  document.getElementById('swapPreview').style.display   = 'none';
+  document.getElementById('lhdnSupPreview').style.display= 'none';
   setTimeout(() => {
     const f = _opType === 'swap' ? 'swapAmount' : 'modalAmount';
     document.getElementById(f).focus();
@@ -1360,6 +1624,58 @@ function closeModal() {
 }
 function handleBackdropClick(e) {
   if (e.target === document.getElementById('modalBackdrop')) closeModal();
+}
+
+function submitLhdnSupplement() {
+  const rawAmt = parseFloat(document.getElementById('lhdnSupAmount').value);
+  const dateVal = document.getElementById('lhdnSupDate').value;
+  const note    = document.getElementById('lhdnSupNote').value.trim();
+  if (isNaN(rawAmt) || rawAmt <= 0) {
+    const inp = document.getElementById('lhdnSupAmount');
+    inp.style.borderColor = 'rgba(255,100,100,0.6)';
+    inp.focus();
+    setTimeout(() => inp.style.borderColor = '', 1500);
+    return;
+  }
+  if (!dateVal) {
+    const inp = document.getElementById('lhdnSupDate');
+    inp.style.borderColor = 'rgba(255,100,100,0.6)';
+    inp.focus();
+    setTimeout(() => inp.style.borderColor = '', 1500);
+    return;
+  }
+  const timeStr  = makeDateTimeStr(dateVal);
+  const dateField = dateVal; // already 'YYYY-MM-DD'
+  const yearField = dateField.slice(0, 4);
+
+  // Only update LHDN — bank untouched
+  state.lhdnByYear[yearField] = (state.lhdnByYear[yearField] || 0) + rawAmt;
+
+  state.txs.push({
+    id: Date.now(), time: timeStr, date: dateField,
+    type: 'lhdn_supplement', amount: rawAmt, currency: 'RM',
+    year: yearField, note
+  });
+  // Auto-switch LHDN card to the year just added
+  _lhdnCardYear = yearField;
+  saveState(); closeModal(); render();
+  populateFilterYears();
+  showToast(`📋 LHDN ${yearField}年補額已記錄！`);
+}
+
+function updateLhdnPreview() {
+  const rawAmt  = parseFloat(document.getElementById('lhdnSupAmount').value);
+  const dateVal = document.getElementById('lhdnSupDate').value;
+  const preview = document.getElementById('lhdnSupPreview');
+  const text    = document.getElementById('lhdnSupPreviewText');
+  if (isNaN(rawAmt) || rawAmt <= 0 || !dateVal) { preview.style.display = 'none'; return; }
+  const year = dateVal.slice(0, 4);
+  const cur  = state.lhdnByYear[year] || 0;
+  text.innerHTML =
+    `<span style="color:#A78BFA;">+ RM ${rawAmt.toLocaleString('en-US',{minimumFractionDigits:2})}</span>` +
+    `<span style="color:#7C6FA0;font-size:0.75rem;"> → ${year}年 LHDN 申報</span>` +
+    `<div style="color:#6B5FA0;font-size:0.72rem;margin-top:4px;">累計後：RM ${(cur + rawAmt).toLocaleString('en-US',{minimumFractionDigits:2})}　（銀行餘額不動）</div>`;
+  preview.style.display = 'block';
 }
 
 // ═══════════════════════════════════════════════
@@ -1415,7 +1731,9 @@ function updateSwapPreview() {
 //  SUBMIT
 // ═══════════════════════════════════════════════
 function submitTransaction() {
-  if (_opType === 'swap') { submitSwap(); } else { submitNormal(); }
+  if (_opType === 'swap')             submitSwap();
+  else if (_opType === 'lhdn_supplement') submitLhdnSupplement();
+  else                                submitNormal();
 }
 
 function submitNormal() {
@@ -1432,19 +1750,21 @@ function submitNormal() {
   const amt      = _opType === 'deposit' ? Math.abs(rawAmt) : -Math.abs(rawAmt);
   const isRM     = _isRM(cat);
   const currency = isRM ? 'RM' : 'USD';
-  const now      = new Date();
-  const timeStr  = now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW',{hour12:false});
+  const customDate = document.getElementById('modalDate').value; // 'YYYY-MM-DD' or ''
+  const timeStr    = makeDateTimeStr(customDate);
+  const dateField  = makeDateField(customDate);
+  const yearField  = dateField.slice(0, 4);
 
   if (cat === 'lhdn') {
-    // Double-write: salary/declared income goes to bank AND LHDN tracker simultaneously
     state.bank = Math.max(0, state.bank + amt);
     state.lhdn = Math.max(0, state.lhdn + amt);
+    state.lhdnByYear[yearField] = (state.lhdnByYear[yearField] || 0) + amt;
   } else if (cat === 'bank')    state.bank    = Math.max(0, state.bank    + amt);
   else if (cat === 'mystock') state.mystock = Math.max(0, state.mystock + amt);
   else if (cat === 'usdt')    state.usdt    = Math.max(0, state.usdt    + amt);
   else if (cat === 'usstock') state.usstock = Math.max(0, state.usstock + amt);
 
-  state.txs.push({ id: Date.now(), time: timeStr, type: _opType, category: cat, amount: amt, currency, note });
+  state.txs.push({ id: Date.now(), time: timeStr, date: dateField, type: _opType, category: cat, amount: amt, currency, note });
   saveState(); closeModal(); render();
   showToast(_opType === 'deposit' ? '✅ 存款已記錄！' : '✅ 提款已記錄！');
 }
@@ -1857,7 +2177,9 @@ document.addEventListener('keydown', e => {
 (async () => {
   initChart();
   await loadState();
+  if (!state.lhdnByYear) state.lhdnByYear = {};
   render();
+  populateFilterYears();
   updateCountdown();
   setInterval(updateCountdown, 1000);
   setInterval(render, 60000);
