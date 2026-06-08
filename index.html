@@ -720,23 +720,35 @@
           <span class="filter-sep">→</span>
           <input type="date" id="filterTo" class="filter-date" onchange="applyFilters()" title="結束日期" />
         </div>
-        <div class="filter-row">
-          <select id="filterType" class="filter-select" onchange="applyFilters()">
-            <option value="">全部類型</option>
-            <option value="deposit">💰 存款</option>
-            <option value="withdraw">💸 提款</option>
-            <option value="swap">🔄 置換</option>
-            <option value="lhdn_supplement">📋 補額LHDN</option>
-          </select>
-          <select id="filterCat" class="filter-select" onchange="applyFilters()">
-            <option value="">全部類別</option>
-            <option value="bank">🏦 銀行</option>
-            <option value="mystock">🇲🇾 馬股</option>
-            <option value="usdt">🪙 USDT</option>
-            <option value="usstock">🇺🇸 美股</option>
-            <option value="lhdn">📊 LHDN(雙寫)</option>
-            <option value="lhdn_supplement">📋 補額LHDN</option>
-          </select>
+        <div class="filter-row" style="align-items:flex-start;">
+          <!-- 類型多選 -->
+          <div class="cdrop" id="dropFType" style="min-width:120px;">
+            <div class="cdrop-trigger" onclick="toggleCDrop('dropFType',event)" style="padding:7px 12px;font-size:0.78rem;">
+              <span id="fTypeDisplay">全部類型</span>
+              <span class="cdrop-arrow">▾</span>
+            </div>
+            <div class="cdrop-menu">
+              <div class="cdrop-item" onclick="toggleFType('deposit',this,event)"><span>💰 存款</span><span class="cdrop-check">✓</span></div>
+              <div class="cdrop-item" onclick="toggleFType('withdraw',this,event)"><span>💸 提款</span><span class="cdrop-check">✓</span></div>
+              <div class="cdrop-item" onclick="toggleFType('swap',this,event)"><span>🔄 置換</span><span class="cdrop-check">✓</span></div>
+              <div class="cdrop-item" onclick="toggleFType('lhdn_supplement',this,event)" style="border-top:1px solid rgba(167,139,250,0.15);"><span>📋 補額LHDN</span><span class="cdrop-check">✓</span></div>
+            </div>
+          </div>
+          <!-- 類別多選 -->
+          <div class="cdrop" id="dropFCat" style="min-width:120px;">
+            <div class="cdrop-trigger" onclick="toggleCDrop('dropFCat',event)" style="padding:7px 12px;font-size:0.78rem;">
+              <span id="fCatDisplay">全部類別</span>
+              <span class="cdrop-arrow">▾</span>
+            </div>
+            <div class="cdrop-menu">
+              <div class="cdrop-item" onclick="toggleFCat('bank',this,event)"><span>🏦 銀行</span><span class="cdrop-check">✓</span></div>
+              <div class="cdrop-item" onclick="toggleFCat('mystock',this,event)"><span>🇲🇾 馬股</span><span class="cdrop-check">✓</span></div>
+              <div class="cdrop-item" onclick="toggleFCat('usdt',this,event)"><span>🪙 USDT</span><span class="cdrop-check">✓</span></div>
+              <div class="cdrop-item" onclick="toggleFCat('usstock',this,event)"><span>🇺🇸 美股</span><span class="cdrop-check">✓</span></div>
+              <div class="cdrop-item" onclick="toggleFCat('lhdn',this,event)" style="border-top:1px solid rgba(167,139,250,0.15);"><span>📊 LHDN</span><span class="cdrop-check">✓</span></div>
+              <div class="cdrop-item" onclick="toggleFCat('lhdn_supplement',this,event)"><span>📋 補額</span><span class="cdrop-check">✓</span></div>
+            </div>
+          </div>
           <button class="filter-clear" onclick="clearFilters()">✕ 清除</button>
           <span class="filter-count" id="filterCount"></span>
         </div>
@@ -1164,38 +1176,61 @@ function populateFilterYears() {
   });
 }
 
+const _FTYPE_LABELS = { deposit:'存款', withdraw:'提款', swap:'置換', lhdn_supplement:'補額LHDN' };
+const _FCAT_LABELS  = { bank:'銀行', mystock:'馬股', usdt:'USDT', usstock:'美股', lhdn:'LHDN', lhdn_supplement:'補額' };
+
+function _updateFDisplay(elId, set, labels, def) {
+  const el = document.getElementById(elId);
+  if (set.size === 0)      { el.textContent = def; el.style.color = ''; }
+  else if (set.size === 1) { el.textContent = labels[[...set][0]] || [...set][0]; el.style.color = '#00FF88'; }
+  else                     { el.textContent = `${set.size} 選中`; el.style.color = '#00FF88'; }
+}
+
+function toggleFType(val, el, event) {
+  if (event) event.stopPropagation();
+  if (_filterTypes.has(val)) { _filterTypes.delete(val); el.classList.remove('selected'); }
+  else                       { _filterTypes.add(val);    el.classList.add('selected'); }
+  _updateFDisplay('fTypeDisplay', _filterTypes, _FTYPE_LABELS, '全部類型');
+  document.querySelector('#dropFType .cdrop-trigger').classList.toggle('filter-active', _filterTypes.size > 0);
+  applyFilters();
+}
+
+function toggleFCat(val, el, event) {
+  if (event) event.stopPropagation();
+  if (_filterCats.has(val)) { _filterCats.delete(val); el.classList.remove('selected'); }
+  else                      { _filterCats.add(val);    el.classList.add('selected'); }
+  _updateFDisplay('fCatDisplay', _filterCats, _FCAT_LABELS, '全部類別');
+  document.querySelector('#dropFCat .cdrop-trigger').classList.toggle('filter-active', _filterCats.size > 0);
+  applyFilters();
+}
+
 function applyFilters() {
   const fYear  = document.getElementById('filterYear').value;
   const fMonth = document.getElementById('filterMonth').value;
   const fFrom  = document.getElementById('filterFrom').value;
   const fTo    = document.getElementById('filterTo').value;
-  const fType  = document.getElementById('filterType').value;
-  const fCat   = document.getElementById('filterCat').value;
 
-  const hasFilter = fYear || fMonth || fFrom || fTo || fType || fCat;
-
-  // Mark active selects
-  ['filterYear','filterMonth','filterType','filterCat'].forEach(id => {
+  ['filterYear','filterMonth'].forEach(id => {
     const el = document.getElementById(id);
-    if (el.value) el.classList.add('filter-active'); else el.classList.remove('filter-active');
+    el.classList.toggle('filter-active', !!el.value);
   });
   ['filterFrom','filterTo'].forEach(id => {
     const el = document.getElementById(id);
-    if (el.value) el.classList.add('filter-active'); else el.classList.remove('filter-active');
+    el.classList.toggle('filter-active', !!el.value);
   });
 
-  renderTable(fYear, fMonth, fFrom, fTo, fType, fCat);
+  renderTable(fYear, fMonth, fFrom, fTo);
 }
 
 function clearFilters() {
-  ['filterYear','filterMonth','filterType','filterCat'].forEach(id => {
-    document.getElementById(id).value = '';
-    document.getElementById(id).classList.remove('filter-active');
-  });
-  ['filterFrom','filterTo'].forEach(id => {
-    document.getElementById(id).value = '';
-    document.getElementById(id).classList.remove('filter-active');
-  });
+  ['filterYear','filterMonth'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('filter-active'); });
+  ['filterFrom','filterTo'].forEach(id => { document.getElementById(id).value = ''; document.getElementById(id).classList.remove('filter-active'); });
+  _filterTypes.clear(); _filterCats.clear();
+  document.querySelectorAll('#dropFType .cdrop-item, #dropFCat .cdrop-item').forEach(el => el.classList.remove('selected'));
+  _updateFDisplay('fTypeDisplay', _filterTypes, _FTYPE_LABELS, '全部類型');
+  _updateFDisplay('fCatDisplay',  _filterCats,  _FCAT_LABELS,  '全部類別');
+  document.querySelector('#dropFType .cdrop-trigger').classList.remove('filter-active');
+  document.querySelector('#dropFCat .cdrop-trigger').classList.remove('filter-active');
   renderTable();
 }
 
@@ -1374,7 +1409,7 @@ function updateTip(bk, my, ud, us, tot) {
   else               el.textContent = '資產配置相對均衡 👍 繼續保持月度紀律儲蓄，穩步向 RM 100,000 目標邁進！';
 }
 
-function renderTable(fYear='', fMonth='', fFrom='', fTo='', fType='', fCat='') {
+function renderTable(fYear='', fMonth='', fFrom='', fTo='') {
   const tbody = document.getElementById('txBody');
   if (!state.txs.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#334155;padding:32px;font-size:0.82rem;">暫無記錄，點擊右下角 ＋ 開始記賬 🚀</td></tr>';
@@ -1390,10 +1425,10 @@ function renderTable(fYear='', fMonth='', fFrom='', fTo='', fType='', fCat='') {
     if (fMonth && extractMonth(t) !== fMonth) return false;
     if (fFrom  && d && d < fFrom) return false;
     if (fTo    && d && d > fTo)   return false;
-    if (fType && effectiveType(t) !== fType) return false;
-    if (fCat) {
-      if (fCat === 'lhdn_supplement') { if (t.type !== 'lhdn_supplement') return false; }
-      else if (t.category !== fCat)   return false;
+    if (_filterTypes.size > 0 && !_filterTypes.has(effectiveType(t))) return false;
+    if (_filterCats.size > 0) {
+      const cat = t.type === 'lhdn_supplement' ? 'lhdn_supplement' : t.category;
+      if (!_filterCats.has(cat)) return false;
     }
     return true;
   });
@@ -1455,6 +1490,23 @@ function renderTable(fYear='', fMonth='', fFrom='', fTo='', fType='', fCat='') {
       <td style="color:#475569;font-size:0.75rem;">${t.note || '—'}</td>
     </tr>`;
   }).join('');
+
+  // ── 合計行 ──
+  const total = txFiltered.reduce((sum, t) => {
+    if (t.type === 'swap' || t.type === 'lhdn_supplement') return sum;
+    return sum + (_isRM(t.category) ? t.amount : t.amount * RATE);
+  }, 0);
+  const tPos   = total >= 0;
+  const tColor = tPos ? '#00FF88' : '#FF6B6B';
+  const tStr   = state.privacy ? '****'
+    : (tPos ? '+' : '−') + 'RM ' + Math.abs(total).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  tbody.innerHTML += `<tr style="border-top:1px solid rgba(255,255,255,0.1);">
+    <td colspan="5" style="text-align:right;font-size:0.75rem;color:#475569;padding:11px 12px;font-weight:600;letter-spacing:0.04em;">
+      篩選合計（${txFiltered.filter(t=>t.type!=='swap'&&t.type!=='lhdn_supplement').length} 筆）
+    </td>
+    <td style="${mono}font-weight:700;font-size:0.95rem;color:${tColor};padding:11px 12px;background:rgba(255,255,255,0.025);border-radius:0 0 8px 0;" class="sensitive">${tStr}</td>
+    <td style="background:rgba(255,255,255,0.025);border-radius:0;"></td>
+  </tr>`;
 }
 
 // ═══════════════════════════════════════════════
@@ -1514,6 +1566,8 @@ let _category = 'bank';
 let _swapFrom = 'bank';
 let _swapTo   = 'usdt';
 let _lhdnCardYear = new Date().getFullYear().toString();
+const _filterTypes = new Set();
+const _filterCats  = new Set();
 
 // ═══════════════════════════════════════════════
 //  CUSTOM DROPDOWN
