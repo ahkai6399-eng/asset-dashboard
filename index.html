@@ -134,6 +134,20 @@
     .asset-card.usdt:hover    { border-color: rgba(38,161,123,0.45); box-shadow: 0 8px 40px rgba(38,161,123,0.15); }
     .asset-card.usstock:hover { border-color: rgba(255,215,0,0.35);  box-shadow: 0 8px 40px rgba(255,215,0,0.12); }
 
+    .asset-card.lhdn::before  { background: radial-gradient(circle, #A78BFA, transparent); }
+    .asset-card.lhdn:hover    { border-color: rgba(167,139,250,0.40); box-shadow: 0 8px 40px rgba(167,139,250,0.15); }
+    .lhdn-badge {
+      font-size: 0.58rem; color: #A78BFA;
+      background: rgba(167,139,250,0.1);
+      border: 1px solid rgba(167,139,250,0.22);
+      padding: 2px 8px; border-radius: 99px; letter-spacing: 0.04em;
+    }
+    .lhdn-disclaimer {
+      font-size: 0.62rem; color: #64748B; margin-top: 8px;
+      background: rgba(167,139,250,0.06); border: 1px solid rgba(167,139,250,0.12);
+      border-radius: 8px; padding: 4px 8px;
+    }
+
     .asset-amount {
       font-family: 'JetBrains Mono', monospace;
       font-size: 1.55rem;
@@ -500,7 +514,7 @@
       </div>
 
       <!-- 4 Asset Cards (2×2 grid) -->
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-4" id="mainAssetGrid">
 
         <!-- Bank -->
         <div class="asset-card bank">
@@ -550,6 +564,18 @@
           <div style="font-size:0.68rem;color:#475569;margin-top:10px;" id="usstockPct">0% of total</div>
         </div>
 
+      </div>
+
+      <!-- LHDN 5th Card -->
+      <div class="asset-card lhdn" style="border-color:rgba(167,139,250,0.18);">
+        <div class="flex items-center justify-between mb-3">
+          <div style="font-size:1.3rem;">📊</div>
+          <div class="lhdn-badge">LHDN</div>
+        </div>
+        <div style="font-size:0.7rem;color:#475569;margin-bottom:5px;">LHDN 申報資產</div>
+        <div class="asset-amount sensitive" style="color:#A78BFA;" id="lhdnAmt">RM 0.00</div>
+        <div style="font-size:0.68rem;color:#7C6FA0;margin-top:3px;" id="lhdnSub">今年度累計申報</div>
+        <div class="lhdn-disclaimer">⚠️ 追蹤用途，已計入銀行餘額，不重複計入總資產</div>
       </div>
 
       <!-- Quick stats -->
@@ -612,9 +638,13 @@
             <span style="font-size:0.82rem;color:#64748B;">🇺🇸 美國股票 × 4.00</span>
             <span style="font-family:'JetBrains Mono',monospace;font-size:0.9rem;" class="neon-gold sensitive" id="bkUsstockRM">RM 0.00</span>
           </div>
-          <div class="flex justify-between items-center pt-3">
+          <div class="flex justify-between items-center pt-3" style="border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:12px;">
             <span style="font-size:0.9rem;font-weight:700;">總計 (RM)</span>
             <span style="font-family:'JetBrains Mono',monospace;font-size:1.05rem;font-weight:700;" class="neon-green neon-glow-green sensitive" id="bkTotal">RM 0.00</span>
+          </div>
+          <div class="flex justify-between items-center pt-3">
+            <span style="font-size:0.82rem;color:#7C6FA0;">📊 LHDN 申報追蹤 <span style="font-size:0.68rem;color:#475569;">（已含於銀行，不重計）</span></span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:0.9rem;color:#A78BFA;" class="sensitive" id="bkLhdnRM">RM 0.00</span>
           </div>
         </div>
       </div>
@@ -711,6 +741,9 @@
               </div>
               <div class="cdrop-item" onclick="selectCategory('usstock','🇺🇸 美國股票 (USD)',this)">
                 <span>🇺🇸 美國股票 (USD)</span><span class="cdrop-check">✓</span>
+              </div>
+              <div class="cdrop-item" onclick="selectCategory('lhdn','📊 LHDN 申報資產 (RM)',this)" style="border-top:1px solid rgba(167,139,250,0.15);">
+                <span>📊 LHDN 申報資產 (RM)</span><span class="cdrop-check">✓</span>
               </div>
             </div>
           </div>
@@ -836,6 +869,7 @@ let state = {
   mystock:  0,   // RM (direct, no conversion)
   usdt:     0,   // USD
   usstock:  0,   // USD
+  lhdn:     0,   // RM — LHDN tax declaration accumulator (already in bank, not added to total)
   txs:      [],
   privacy:  false,
   currency: 'RM',
@@ -911,6 +945,7 @@ async function saveState() {
       mystock: state.mystock,
       usdt: state.usdt,
       usstock: state.usstock,
+      lhdn: state.lhdn,
       txs: state.txs,
       planStart: state.planStart
     };
@@ -1057,6 +1092,10 @@ function render() {
   }
   document.getElementById('usstockPct').textContent = pct(us, tot) + '% of total';
 
+  // ── LHDN card ──
+  document.getElementById('lhdnAmt').textContent = fmt(state.lhdn, 'RM');
+  document.getElementById('lhdnSub').textContent = state.privacy ? '' : `今年累計申報 / 銀行已同步`;
+
   // ── Stats ──
   document.getElementById('txCount').textContent = state.txs.length;
   // 當月淨存入：篩選本月交易（非 swap），折算 RM 後加總
@@ -1064,7 +1103,7 @@ function render() {
   const thisYM = `${now.getFullYear()}/${now.getMonth()+1}/`;
   const monthTxs = state.txs.filter(t => t.type !== 'swap' && t.time && t.time.startsWith(thisYM));
   const monthSum = monthTxs.reduce((a,t) => {
-    const rmEq = (t.category === 'bank' || t.category === 'mystock') ? t.amount : t.amount * RATE;
+    const rmEq = _isRM(t.category) ? t.amount : t.amount * RATE;
     return a + rmEq;
   }, 0);
   document.getElementById('avgMonthly').textContent = monthTxs.length > 0 ? fmt(monthSum, 'RM', 0) : '—';
@@ -1091,6 +1130,7 @@ function render() {
   document.getElementById('bkUsdtRM').textContent    = fmt(ud,  'RM');
   document.getElementById('bkUsstockRM').textContent = fmt(us,  'RM');
   document.getElementById('bkTotal').textContent     = fmt(tot, 'RM');
+  document.getElementById('bkLhdnRM').textContent    = fmt(state.lhdn, 'RM');
 
   // ── Smart tip ──
   updateTip(bkP, myP, udP, usP, tot);
@@ -1116,7 +1156,7 @@ function renderTable() {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#334155;padding:32px;font-size:0.82rem;">暫無記錄，點擊右下角 ＋ 開始記賬 🚀</td></tr>';
     return;
   }
-  const CL = { bank:'🏦 銀行', mystock:'🇲🇾 馬股', usdt:'🪙 USDT', usstock:'🇺🇸 美股' };
+  const CL = { bank:'🏦 銀行', mystock:'🇲🇾 馬股', usdt:'🪙 USDT', usstock:'🇺🇸 美股', lhdn:'📊 LHDN' };
   const mono = `font-family:'JetBrains Mono',monospace;`;
   tbody.innerHTML = [...state.txs].reverse().map((t, i) => {
     const seq = state.txs.length - i;
@@ -1139,12 +1179,13 @@ function renderTable() {
     const isPos = t.amount >= 0;
     const color = isPos ? '#00FF88' : '#FF6B6B';
     const amtStr = state.privacy ? '****' : (isPos ? '+' : '') + t.amount.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-    const rmEq = (t.category === 'bank' || t.category === 'mystock') ? t.amount : t.amount * RATE;
+    const rmEq = _isRM(t.category) ? t.amount : t.amount * RATE;
     const rmStr = state.privacy ? '****' : (isPos ? '+' : '') + 'RM ' + Math.abs(rmEq).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const lhdnTag = t.category === 'lhdn' ? ' <span style="font-size:0.65rem;color:#A78BFA;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.2);padding:1px 5px;border-radius:4px;">★雙寫銀行</span>' : '';
     return `<tr>
       <td style="color:#334155;${mono}">${seq}</td>
       <td style="color:#475569;${mono}font-size:0.72rem;">${t.time}</td>
-      <td>${CL[t.category] || t.category}</td>
+      <td>${CL[t.category] || t.category}${lhdnTag}</td>
       <td style="color:${color};${mono}font-weight:700;" class="sensitive">${amtStr}</td>
       <td style="color:#475569;">${t.currency}</td>
       <td style="color:${color};${mono}" class="sensitive">${rmStr}</td>
@@ -1275,7 +1316,7 @@ function selectSwapTo(cat, label, el) {
   updateSwapPreview();
 }
 
-function _isRM(cat) { return cat === 'bank' || cat === 'mystock'; }
+function _isRM(cat) { return cat === 'bank' || cat === 'mystock' || cat === 'lhdn'; }
 
 function _refreshSwapRate() {
   const fromRM = _isRM(_swapFrom), toRM = _isRM(_swapTo);
@@ -1334,11 +1375,12 @@ function updatePreview() {
   const currency = isRM ? 'RM' : 'USD';
   const amt      = _opType === 'deposit' ? Math.abs(rawAmt) : -Math.abs(rawAmt);
   const rmEq     = isRM ? Math.abs(amt) : Math.abs(amt) * RATE;
-  const catLabel = { bank:'銀行存款', mystock:'大馬股票', usdt:'USDT', usstock:'美國股票' }[cat];
+  const catLabel = { bank:'銀行存款', mystock:'大馬股票', usdt:'USDT', usstock:'美國股票', lhdn:'LHDN 申報資產' }[cat];
   const sign = amt >= 0 ? '+' : '−';
   const col  = amt >= 0 ? '#00FF88' : '#FF6B6B';
+  const lhdnNote = cat === 'lhdn' ? `<div style="color:#A78BFA;font-size:0.73rem;margin-top:4px;">★ 同步計入銀行存款（雙寫）</div>` : '';
   text.innerHTML = `<span style="color:${col};">${sign}${Math.abs(amt).toLocaleString('en-US',{minimumFractionDigits:2})} ${currency}</span>
-    <span style="color:#475569;font-size:0.75rem;"> → ${catLabel}${isRM ? '' : ` (≈ RM ${rmEq.toLocaleString('en-US',{minimumFractionDigits:2})})`}</span>`;
+    <span style="color:#475569;font-size:0.75rem;"> → ${catLabel}${isRM ? '' : ` (≈ RM ${rmEq.toLocaleString('en-US',{minimumFractionDigits:2})})`}</span>${lhdnNote}`;
   preview.style.display = 'block';
 }
 
@@ -1393,10 +1435,14 @@ function submitNormal() {
   const now      = new Date();
   const timeStr  = now.toLocaleDateString('zh-TW') + ' ' + now.toLocaleTimeString('zh-TW',{hour12:false});
 
-  if (cat === 'bank')    state.bank    = Math.max(0, state.bank    + amt);
-  if (cat === 'mystock') state.mystock = Math.max(0, state.mystock + amt);
-  if (cat === 'usdt')    state.usdt    = Math.max(0, state.usdt    + amt);
-  if (cat === 'usstock') state.usstock = Math.max(0, state.usstock + amt);
+  if (cat === 'lhdn') {
+    // Double-write: salary/declared income goes to bank AND LHDN tracker simultaneously
+    state.bank = Math.max(0, state.bank + amt);
+    state.lhdn = Math.max(0, state.lhdn + amt);
+  } else if (cat === 'bank')    state.bank    = Math.max(0, state.bank    + amt);
+  else if (cat === 'mystock') state.mystock = Math.max(0, state.mystock + amt);
+  else if (cat === 'usdt')    state.usdt    = Math.max(0, state.usdt    + amt);
+  else if (cat === 'usstock') state.usstock = Math.max(0, state.usstock + amt);
 
   state.txs.push({ id: Date.now(), time: timeStr, type: _opType, category: cat, amount: amt, currency, note });
   saveState(); closeModal(); render();
@@ -1595,6 +1641,24 @@ async function exportExcel() {
   lnk.alignment = {horizontal:'center',vertical:'middle'};
   lnk.border = bdr('FF1A5C38');
 
+  // R18 分隔 + LHDN 稅務追蹤區段
+  sep(ws1,18,'F',8);
+  ws1.getRow(19).height=26;
+  ws1.mergeCells('A19:F19');
+  const lhdnHdr=ws1.getCell('A19');
+  lhdnHdr.value='📊  LHDN 稅務申報追蹤（今年度累計，已含於銀行餘額，不重複計入總資產）';
+  lhdnHdr.font={bold:true,size:10,color:{argb:'FFC4B5FD'},name:'Calibri'};
+  lhdnHdr.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF12082A'}};
+  lhdnHdr.alignment={horizontal:'left',vertical:'middle'};
+  lhdnHdr.border={top:{style:'medium',color:{argb:'FF7C3AED'}},bottom:bdr().bottom,left:bdr().left,right:bdr().right};
+  ws1.getRow(20).height=22;
+  ['A','B','C','D','E','F'].forEach(col=>{ const c=ws1.getCell(`${col}20`); c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0E0620'}}; c.border=bdr('FF5B21B6'); });
+  const la=ws1.getCell('A20'); la.value='📊 LHDN 今年申報資產'; la.font={size:10,color:{argb:'FFC4B5FD'},name:'Calibri'}; la.alignment={horizontal:'left',vertical:'middle'};
+  const lb=ws1.getCell('B20'); lb.value=state.lhdn; lb.numFmt=FMT; lb.font={bold:true,size:11,color:{argb:'FFA78BFA'},name:'Calibri'}; lb.alignment={horizontal:'right',vertical:'middle'};
+  const lc=ws1.getCell('C20'); lc.value='RM'; lc.font={size:10,color:{argb:'FFC4B5FD'},name:'Calibri'}; lc.alignment={horizontal:'center',vertical:'middle'};
+  ws1.mergeCells('D20:F20'); const ld=ws1.getCell('D20'); ld.value='★ 存入時已同步至銀行餘額（雙寫），此欄為稅務申報追蹤用途'; ld.font={size:9,italic:true,color:{argb:'FF7C5FA8'},name:'Calibri'}; ld.alignment={horizontal:'left',vertical:'middle'};
+  sep(ws1,21,'F',6);
+
   // ════════════════════════════════════════════════════════════
   //  SHEET 2：變動流水明細
   //  欄：A# | B時間 | C類別 | D金額 | E幣種 | F折算RM | G累計餘額 | H備注
@@ -1613,7 +1677,7 @@ async function exportExcel() {
    ['E','幣種','center'],['F','折算 RM','right'],['G','累計餘額','right'],['H','備注','left']]
     .forEach(([col,txt,align])=>H(ws2.getCell(`${col}2`),txt,align));
 
-  const CAT = {bank:'銀行存款',mystock:'大馬股票',usdt:'USDT 錢包',usstock:'美國股票'};
+  const CAT = {bank:'銀行存款',mystock:'大馬股票',usdt:'USDT 錢包',usstock:'美國股票',lhdn:'LHDN 申報資產'};
   let curR = 3, lastBalR = null, gIdx = 1, monthSubR = [], runBal = 0;
 
   if (!state.txs.length) {
@@ -1657,7 +1721,7 @@ async function exportExcel() {
           lastBalR=r; curR++;
           return;
         }
-        const isRM=(t.category==='bank'||t.category==='mystock');
+        const isRM=(t.category==='bank'||t.category==='mystock'||t.category==='lhdn');
         const rmRes=parseFloat((isRM?t.amount:t.amount*RATE).toFixed(2));
         // F 欄公式引用 Sheet1 匯率活口
         const rmFn = isRM ? `D${r}` : `D${r}*'資產大盤'!$C$4`;
@@ -1675,7 +1739,8 @@ async function exportExcel() {
         const gCell=ws2.getCell(`G${r}`);
         D(gCell,{formula:balFn,result:balRes},even,'right',FMT);
         gCell.font={size:10,color:{argb:'FF7FFFD4'},name:'Calibri'};
-        D(ws2.getCell(`H${r}`),t.note||'',even,'left');
+        const noteVal = (t.category==='lhdn'?'[★雙寫銀行] ':'') + (t.note||'');
+        D(ws2.getCell(`H${r}`),noteVal,even,'left');
 
         lastBalR=r; curR++;
       });
