@@ -1136,6 +1136,20 @@ function lhdnYearShift(delta) {
   render();
 }
 
+// ── effectiveType: handles legacy txs with missing/wrong type ────
+function effectiveType(t) {
+  if (t.type === 'lhdn_supplement') return 'lhdn_supplement';
+  if (t.type === 'swap')            return 'swap';
+  if (t.type === 'withdraw')        return 'withdraw';
+  if (t.type === 'deposit') {
+    // legacy: negative amount stored under 'deposit' = actual withdrawal
+    return t.amount < 0 ? 'withdraw' : 'deposit';
+  }
+  // no type field at all: infer from sign
+  if (t.amount === undefined) return 'deposit';
+  return t.amount >= 0 ? 'deposit' : 'withdraw';
+}
+
 // ── Filter logic ──────────────────────────────────
 function populateFilterYears() {
   const sel = document.getElementById('filterYear');
@@ -1376,10 +1390,7 @@ function renderTable(fYear='', fMonth='', fFrom='', fTo='', fType='', fCat='') {
     if (fMonth && extractMonth(t) !== fMonth) return false;
     if (fFrom  && d && d < fFrom) return false;
     if (fTo    && d && d > fTo)   return false;
-    if (fType) {
-      if (fType === 'lhdn_supplement') { if (t.type !== 'lhdn_supplement') return false; }
-      else if (t.type !== fType) return false;
-    }
+    if (fType && effectiveType(t) !== fType) return false;
     if (fCat) {
       if (fCat === 'lhdn_supplement') { if (t.type !== 'lhdn_supplement') return false; }
       else if (t.category !== fCat)   return false;
