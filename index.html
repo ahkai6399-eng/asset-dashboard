@@ -121,6 +121,7 @@
       border-radius: 50%;
       opacity: 0.04;
       transition: opacity 0.3s;
+      pointer-events: none;
     }
     .asset-card:hover { transform: translateY(-4px); }
 
@@ -1309,7 +1310,7 @@ function render() {
   // 當月淨存入：篩選本月交易（非 swap），折算 RM 後加總
   const now = new Date();
   const thisYM = `${now.getFullYear()}/${now.getMonth()+1}/`;
-  const monthTxs = state.txs.filter(t => t.type !== 'swap' && t.time && t.time.startsWith(thisYM));
+  const monthTxs = state.txs.filter(t => t.type !== 'swap' && t.type !== 'lhdn_supplement' && t.time && t.time.startsWith(thisYM));
   const monthSum = monthTxs.reduce((a,t) => {
     const rmEq = _isRM(t.category) ? t.amount : t.amount * RATE;
     return a + rmEq;
