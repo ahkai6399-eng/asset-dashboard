@@ -1433,7 +1433,7 @@ function renderTable(fYear='', fMonth='', fFrom='', fTo='') {
     return true;
   });
 
-  const hasFilter = fYear || fMonth || fFrom || fTo || fType || fCat;
+  const hasFilter = fYear || fMonth || fFrom || fTo || _filterTypes.size > 0 || _filterCats.size > 0;
   const countEl = document.getElementById('filterCount');
   countEl.textContent = hasFilter ? `顯示 ${txFiltered.length} / ${state.txs.length} 筆` : '';
   const mono = `font-family:'JetBrains Mono',monospace;`;
