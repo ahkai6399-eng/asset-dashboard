@@ -852,6 +852,10 @@
             </div>
           </div>
         </div>
+        <!-- 雙寫提示（僅存款+LHDN時顯示） -->
+        <div id="dualWriteHint" style="display:none;background:rgba(0,255,136,0.07);border:1px solid rgba(0,255,136,0.25);border-radius:10px;padding:9px 14px;font-size:0.78rem;color:#00FF88;margin-top:2px;">
+          ✦ 雙寫模式：此筆將同步累加 <strong>銀行存款</strong> 與 <strong>LHDN 申報卡片</strong>，其餘資產不受影響
+        </div>
         <!-- 自定義日期（補錄歷史用） -->
         <div>
           <label style="font-size:0.75rem;color:#64748B;display:block;margin-bottom:6px;letter-spacing:0.06em;">記賬日期 <span style="color:#334155;font-size:0.68rem;">（選填，留空 = 今天）</span></label>
@@ -1611,6 +1615,11 @@ function selectOpType(type, label, el) {
   if (!isSwap && !isLhdnSup) {
     document.getElementById('amtLabel').textContent = type === 'deposit' ? '存款金額' : '提款金額';
     document.getElementById('modalAmount').value = '';
+    const hint = document.getElementById('dualWriteHint');
+    if (hint) hint.style.display = (type === 'deposit' && _category === 'lhdn') ? 'block' : 'none';
+  } else {
+    const hint = document.getElementById('dualWriteHint');
+    if (hint) hint.style.display = 'none';
   }
   if (isLhdnSup) {
     // default date to today
@@ -1623,6 +1632,9 @@ function selectCategory(cat, label, el) {
   _category = cat;
   document.getElementById('catDisplay').textContent = label;
   _selectInDrop('dropCategory', el);
+  // dual-write hint: only show when deposit + LHDN
+  const hint = document.getElementById('dualWriteHint');
+  if (hint) hint.style.display = (cat === 'lhdn' && _opType === 'deposit') ? 'block' : 'none';
   updatePreview();
 }
 
@@ -2003,7 +2015,19 @@ async function exportExcel() {
     ws1.mergeCells(`E${r}:F${r}`); S(ws1.getCell(`E${r}`),s.note,'left',null,false);
   });
 
-  // D15 達成進度：條件格式 Data Bar（進度能量條）
+  // D7:D10 各資產行：DataBar（佔總資產比例視覺化）
+  try {
+    ws1.addConditionalFormatting({
+      ref:'D7:D10',
+      rules:[{
+        type:'dataBar', priority:2,
+        cfvo:[{type:'num',value:0},{type:'num',value:totalRM||1}],
+        color:{argb:'FF00A86B'}, gradient:true, showValue:true,
+      }]
+    });
+  } catch(e){}
+
+  // D15 達成進度：DataBar（進度能量條，0→100%）
   try {
     ws1.addConditionalFormatting({
       ref:'D15',
@@ -2027,23 +2051,68 @@ async function exportExcel() {
   lnk.alignment = {horizontal:'center',vertical:'middle'};
   lnk.border = bdr('FF1A5C38');
 
-  // R18 分隔 + LHDN 稅務追蹤區段
+  // R18 分隔 + LHDN 稅務追蹤區段（lhdnByYear 逐年分列）
   sep(ws1,18,'F',8);
   ws1.getRow(19).height=26;
   ws1.mergeCells('A19:F19');
   const lhdnHdr=ws1.getCell('A19');
-  lhdnHdr.value='📊  LHDN 稅務申報追蹤（今年度累計，已含於銀行餘額，不重複計入總資產）';
+  lhdnHdr.value='📊  LHDN 稅務申報追蹤（逐年分列 · 已含於銀行餘額，不重複計入總資產）';
   lhdnHdr.font={bold:true,size:10,color:{argb:'FFC4B5FD'},name:'Calibri'};
   lhdnHdr.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF12082A'}};
   lhdnHdr.alignment={horizontal:'left',vertical:'middle'};
   lhdnHdr.border={top:{style:'medium',color:{argb:'FF7C3AED'}},bottom:bdr().bottom,left:bdr().left,right:bdr().right};
-  ws1.getRow(20).height=22;
-  ['A','B','C','D','E','F'].forEach(col=>{ const c=ws1.getCell(`${col}20`); c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0E0620'}}; c.border=bdr('FF5B21B6'); });
-  const la=ws1.getCell('A20'); la.value='📊 LHDN 今年申報資產'; la.font={size:10,color:{argb:'FFC4B5FD'},name:'Calibri'}; la.alignment={horizontal:'left',vertical:'middle'};
-  const lb=ws1.getCell('B20'); lb.value=state.lhdn; lb.numFmt=FMT; lb.font={bold:true,size:11,color:{argb:'FFA78BFA'},name:'Calibri'}; lb.alignment={horizontal:'right',vertical:'middle'};
-  const lc=ws1.getCell('C20'); lc.value='RM'; lc.font={size:10,color:{argb:'FFC4B5FD'},name:'Calibri'}; lc.alignment={horizontal:'center',vertical:'middle'};
-  ws1.mergeCells('D20:F20'); const ld=ws1.getCell('D20'); ld.value='★ 存入時已同步至銀行餘額（雙寫），此欄為稅務申報追蹤用途'; ld.font={size:9,italic:true,color:{argb:'FF7C5FA8'},name:'Calibri'}; ld.alignment={horizontal:'left',vertical:'middle'};
-  sep(ws1,21,'F',6);
+
+  // LHDN 欄標頭
+  ws1.getRow(20).height=20;
+  [['A','年度','left'],['B','申報金額 (RM)','right'],['C','幣種','center'],['D','','center'],['E','備注','left'],['F','','center']]
+    .forEach(([col,txt,align])=>{
+      const c=ws1.getCell(`${col}20`);
+      c.value=txt; c.font={bold:true,size:9,color:{argb:'FF9F7FE8'},name:'Calibri'};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0E0620'}};
+      c.alignment={horizontal:align,vertical:'middle'};
+      c.border=bdr('FF5B21B6');
+    });
+
+  // 逐年列出 lhdnByYear
+  const lhdnYears = Object.keys(state.lhdnByYear).sort();
+  let lhdnTot = 0;
+  let lhdnCurR = 21;
+  if (lhdnYears.length === 0) {
+    ws1.getRow(lhdnCurR).height=20;
+    ws1.mergeCells(`A${lhdnCurR}:F${lhdnCurR}`);
+    const ec=ws1.getCell(`A${lhdnCurR}`);
+    ec.value='（暫無 LHDN 申報記錄）';
+    ec.font={size:9,italic:true,color:{argb:'FF5A4A8A'},name:'Calibri'};
+    ec.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0E0620'}};
+    ec.alignment={horizontal:'center',vertical:'middle'};
+    ec.border=bdr('FF5B21B6');
+    lhdnCurR++;
+  } else {
+    lhdnYears.forEach((yr,i)=>{
+      const amt=state.lhdnByYear[yr]||0; lhdnTot+=amt;
+      ws1.getRow(lhdnCurR).height=21;
+      const even=i%2===0;
+      const bg=even?'FF100825':'FF0E0620';
+      ['A','B','C','D','E','F'].forEach(col=>{const c=ws1.getCell(`${col}${lhdnCurR}`);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}};c.border=bdr('FF5B21B6');});
+      const ya=ws1.getCell(`A${lhdnCurR}`); ya.value=`${yr} 年度`; ya.font={size:10,color:{argb:'FFC4B5FD'},name:'Calibri'}; ya.alignment={horizontal:'left',vertical:'middle'};
+      const yb=ws1.getCell(`B${lhdnCurR}`); yb.value=amt; yb.numFmt=FMT; yb.font={bold:true,size:11,color:{argb:'FFA78BFA'},name:'Calibri'}; yb.alignment={horizontal:'right',vertical:'middle'};
+      const yc=ws1.getCell(`C${lhdnCurR}`); yc.value='RM'; yc.font={size:10,color:{argb:'FFC4B5FD'},name:'Calibri'}; yc.alignment={horizontal:'center',vertical:'middle'};
+      ws1.mergeCells(`D${lhdnCurR}:F${lhdnCurR}`);
+      const yd=ws1.getCell(`D${lhdnCurR}`); yd.value=`★ 雙寫：已同步至銀行 · 申報年度 ${yr}`; yd.font={size:9,italic:true,color:{argb:'FF7C5FA8'},name:'Calibri'}; yd.alignment={horizontal:'left',vertical:'middle'};
+      lhdnCurR++;
+    });
+    // LHDN 合計行
+    ws1.getRow(lhdnCurR).height=22;
+    ws1.mergeCells(`A${lhdnCurR}:C${lhdnCurR}`);
+    const lt=ws1.getCell(`A${lhdnCurR}`); lt.value='LHDN 歷年申報總計'; lt.font={bold:true,size:10,color:{argb:'FFD8B4FE'},name:'Calibri'}; lt.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A0A35'}}; lt.alignment={horizontal:'left',vertical:'middle'}; lt.border=bdr('FF7C3AED');
+    const ltv=ws1.getCell(`D${lhdnCurR}`);
+    const lhdnSumFn=lhdnYears.length?`SUM(B21:B${lhdnCurR-1})`:'0';
+    ltv.value={formula:lhdnSumFn,result:parseFloat(lhdnTot.toFixed(2))}; ltv.numFmt=FMT; ltv.font={bold:true,size:11,color:{argb:'FFA78BFA'},name:'Calibri'}; ltv.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A0A35'}}; ltv.alignment={horizontal:'right',vertical:'middle'}; ltv.border=bdr('FF7C3AED');
+    ws1.mergeCells(`E${lhdnCurR}:F${lhdnCurR}`);
+    const lte=ws1.getCell(`E${lhdnCurR}`); lte.value='← 活公式：自動加總所有年度'; lte.font={size:9,italic:true,color:{argb:'FF7C5FA8'},name:'Calibri'}; lte.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A0A35'}}; lte.alignment={horizontal:'left',vertical:'middle'}; lte.border=bdr('FF7C3AED');
+    lhdnCurR++;
+  }
+  sep(ws1, lhdnCurR, 'F', 6);
 
   // ════════════════════════════════════════════════════════════
   //  SHEET 2：變動流水明細
@@ -2152,6 +2221,28 @@ async function exportExcel() {
     S(ws2.getCell(`G${curR}`),lastBalR?{formula:`G${lastBalR}`,result:parseFloat(runBal.toFixed(2))}:0,'right',FMT,true);
     S(ws2.getCell(`H${curR}`),'','left');
     ws2.getRow(curR).height=26;
+  }
+
+  // Sheet2 F欄（折算RM）：正數綠 / 負數紅 三色色標
+  if (curR > 3) {
+    try {
+      ws2.addConditionalFormatting({
+        ref: `F3:F${curR}`,
+        rules: [{
+          type: 'colorScale', priority: 3,
+          cfvo: [
+            { type: 'num', value: Math.min(...state.txs.map(t=>t.type==='swap'?0:((_isRM(t.category)?t.amount:t.amount*RATE))||0)) },
+            { type: 'num', value: 0 },
+            { type: 'num', value: Math.max(...state.txs.map(t=>t.type==='swap'?0:((_isRM(t.category)?t.amount:t.amount*RATE))||0)) },
+          ],
+          color: [
+            { argb: 'FFFF4444' },
+            { argb: 'FF334155' },
+            { argb: 'FF00FF88' },
+          ],
+        }]
+      });
+    } catch(e) {}
   }
 
   // ── 下載 ────────────────────────────────────────────────────
